@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGIS ZNT Waru – Kecamatan Waru, Sidoarjo</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white:    #ffffff;
+      --bg:       #f5f6fa;
+      --border:   #e2e5ec;
+      --border2:  #d0d5e1;
+      --text:     #1a202c;
+      --muted:    #718096;
+      --blue:     #2563eb;
+      --blue-light:#eff6ff;
+      --red:      #ef4444;
+      --red-light:#fef2f2;
+      --green:    #16a34a;
+      --green-light:#f0fdf4;
+      --orange:   #ea580c;
+      --orange-light:#fff7ed;
+      --purple:   #7c3aed;
+      --teal:     #0d9488;
+
+      --rendah:   #3b82f6;
+      --sedang:   #22c55e;
+      --tinggi:   #ef4444;
+
+      --nav-h:    56px;
+      --panel-w:  272px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      height: var(--nav-h);
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 10000;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-logo {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .nav-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .nav-subtitle { font-size: 11px; color: var(--muted); }
+
+    .nav-chips { display: flex; gap: 6px; margin-left: 4px; }
+    .chip {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .chip-blue  { background: var(--blue-light);   color: var(--blue);   border-color: #bfdbfe; }
+    .chip-green { background: var(--green-light);  color: var(--green);  border-color: #bbf7d0; }
+    .chip-red   { background: var(--red-light);    color: var(--red);    border-color: #fecaca; }
+
+    .nav-spacer { flex: 1; }
+
+    .nav-links { display: flex; gap: 2px; }
+    .nav-link {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      transition: all .15s;
+    }
+    .nav-link:hover { background: var(--bg); color: var(--text); }
+    .nav-link.active {
+      background: var(--blue);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── LAYOUT ── */
+    .app-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── SIDE PANEL ── */
+    .panel {
+      width: var(--panel-w);
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+      z-index: 500;
+    }
+
+    /* panel tab bar */
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .ptab {
+      flex: 1;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .ptab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+    }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    .panel-section { margin-bottom: 18px; }
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    /* layer row */
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 9px;
+      border-radius: 7px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .layer-item:hover { background: var(--bg); }
+    .layer-item input[type=checkbox] {
+      accent-color: var(--blue);
+      width: 14px; height: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .layer-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .layer-name { flex: 1; font-size: 12px; font-weight: 500; }
+    .layer-eye {
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      opacity: .5;
+    }
+    .layer-eye:hover { opacity: 1; }
+
+    /* slider */
+    .slider-section { padding: 4px 2px; }
+    .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .slider-label { font-size: 11px; color: var(--muted); flex: 1; }
+    .slider-val { font-size: 11px; font-weight: 600; color: var(--blue); min-width: 34px; text-align: right; }
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--blue);
+      margin-top: 2px;
+    }
+
+    /* filter */
+    select, input[type=text] {
+      width: 100%;
+      border: 1px solid var(--border2);
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--white);
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s;
+      margin-bottom: 8px;
+    }
+    select:focus, input[type=text]:focus { border-color: var(--blue); }
+
+    .btn-reset {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border2);
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--white);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .15s;
+    }
+    .btn-reset:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+
+    /* legend */
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text);
+      padding: 3px 0;
+    }
+    .leg-swatch { width: 28px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .leg-icon { font-size: 14px; }
+
+    /* info tip at bottom of panel */
+    .panel-tip {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+      flex-shrink: 0;
+    }
+
+    /* ── MAP ── */
+    #map {
+      flex: 1;
+      z-index: 1;
+    }
+
+    /* coordinates bar */
+    .coords-bar {
+      position: absolute;
+      bottom: 0; left: var(--panel-w);
+      right: 0;
+      height: 22px;
+      background: rgba(255,255,255,.92);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 16px;
+      font-size: 10px;
+      color: var(--muted);
+      z-index: 900;
+      font-family: monospace;
+    }
+    .coords-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+    /* custom popup */
+    .leaflet-popup-content-wrapper {
+      border-radius: 10px !important;
+      box-shadow: 0 8px 30px rgba(0,0,0,.15) !important;
+      border: 1px solid var(--border) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-content { margin: 0 !important; }
+    .leaflet-popup-tip-container { display: none; }
+
+    .popup-box { padding: 14px 16px; min-width: 210px; }
+    .popup-head {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .popup-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .popup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .popup-kv { display: flex; flex-direction: column; gap: 1px; }
+    .popup-k { font-size: 10px; color: var(--muted); }
+    .popup-v { font-size: 12px; font-weight: 600; }
+    .popup-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 6px; }
+    .popup-note { font-size: 10px; color: var(--muted); }
+
+    /* ── DASHBOARD VIEW ── */
+    #dash-view {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg);
+      padding: 24px;
+      display: none;
+    }
+    #dash-view.show { display: block; }
+
+    .dash-header { margin-bottom: 20px; }
+    .dash-header h2 { font-size: 18px; font-weight: 700; }
+    .dash-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .kpi {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-bar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: 10px 0 0 10px;
+    }
+    .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 6px; }
+    .kpi-val { font-size: 22px; font-weight: 700; }
+    .kpi-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+
+    /* bar chart */
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .bar-label { font-size: 11px; width: 120px; flex-shrink: 0; color: var(--text); }
+    .bar-track { flex: 1; background: var(--bg); border-radius: 4px; height: 20px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; transition: width .5s; }
+    .bar-text { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; }
+
+    /* histogram */
+    .hist-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .hist-label { font-size: 10px; color: var(--muted); width: 84px; flex-shrink: 0; }
+    .hist-track { flex: 1; background: var(--bg); height: 18px; border-radius: 4px; overflow: hidden; }
+    .hist-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 6px; }
+    .hist-count { font-size: 10px; font-weight: 700; color: #fff; }
+
+    /* scatter SVG */
+    .scatter-svg { width: 100%; height: 220px; }
+
+    /* box plot */
+    .box-wrap { display: flex; gap: 24px; justify-content: center; padding: 8px 0; }
+
+    /* table */
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th {
+      background: var(--bg);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: var(--bg); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .btn-export {
+      padding: 7px 16px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-export:hover { background: #1d4ed8; }
+
+    /* ── STORY VIEW ── */
+    #story-view {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--white);
+      display: none;
+    }
+    #story-view.show { display: block; }
+
+    .story-hero {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      padding: 60px 48px;
+      text-align: center;
+      color: #fff;
+    }
+    .story-hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 10px; }
+    .story-hero p { font-size: 14px; opacity: .8; max-width: 540px; margin: 0 auto; }
+
+    .story-chaps { max-width: 960px; margin: 0 auto; }
+
+    .chap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+      min-height: 340px;
+    }
+    .chap.rev { direction: rtl; }
+    .chap.rev > * { direction: ltr; }
+
+    .chap-text {
+      padding: 44px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+    }
+    .chap-num { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--blue); }
+    .chap-title { font-size: 22px; font-weight: 700; color: var(--text); }
+    .chap-desc { font-size: 13px; color: var(--muted); line-height: 1.75; }
+
+    .chap-vis {
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
+    .chap.rev .chap-vis { border-left: none; border-right: 1px solid var(--border); }
+
+    /* story infographic blocks */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+    .info-box {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .info-val { font-size: 22px; font-weight: 700; }
+    .info-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .factor-list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+    .factor-item {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .factor-name { font-size: 11px; font-weight: 500; width: 110px; flex-shrink: 0; }
+    .fbar-wrap { flex: 1; background: var(--bg); height: 6px; border-radius: 3px; }
+    .fbar-fill { height: 100%; border-radius: 3px; }
+    .factor-pct { font-size: 11px; font-weight: 600; color: var(--text); min-width: 30px; text-align: right; }
+
+    /* team */
+    .team-section {
+      border-top: 1px solid var(--border);
+      padding: 48px 40px;
+      text-align: center;
+      background: var(--bg);
+    }
+    .team-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .team-section > p { font-size: 12px; color: var(--muted); margin-bottom: 28px; }
+    .team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; max-width: 840px; margin: 0 auto; }
+    .team-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 9px;
+    }
+    .team-avatar {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #fff;
+      overflow: hidden;
+    }
+    .team-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .team-name { font-size: 12px; font-weight: 600; text-align: center; line-height: 1.4; }
+    .team-role { font-size: 10px; color: var(--muted); }
+
+    /* ── BERANDA ─────────────────────────────────────── */
+    .brd-hero {
+      position: relative;
+      min-height: 340px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #0f172a 100%);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 48px 48px 32px;
+    }
+    .brd-hero-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(37,99,235,.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 10% 30%, rgba(124,58,237,.15) 0%, transparent 60%),
+        radial-gradient(ellipse 30% 40% at 50% 80%, rgba(13,148,136,.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .brd-hero-bg::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .brd-hero-content { position: relative; max-width: 680px; }
+    .brd-badge {
+      display: inline-block;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.7);
+      font-size: 11px; font-weight: 500;
+      padding: 4px 12px; border-radius: 99px;
+      margin-bottom: 18px; letter-spacing: .3px;
+    }
+    .brd-title {
+      font-size: 44px; font-weight: 800; line-height: 1.1;
+      color: #fff; margin-bottom: 14px;
+    }
+    .brd-title span {
+      background: linear-gradient(90deg, #60a5fa, #a78bfa, #34d399);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .brd-sub { font-size: 14px; color: rgba(255,255,255,.6); line-height: 1.8; max-width: 520px; margin-bottom: 28px; }
+    .brd-sub strong { color: rgba(255,255,255,.9); }
+    .brd-cta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .brd-cta {
+      display: flex; align-items: center; gap: 7px;
+      padding: 10px 20px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: all .2s; white-space: nowrap;
+    }
+    .brd-cta-primary { background: #2563eb; color: #fff; }
+    .brd-cta-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,.4); }
+    .brd-cta-dash { background: rgba(124,58,237,.9); color: #fff; }
+    .brd-cta-dash:hover { background: #7c3aed; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,58,237,.4); }
+    .brd-cta-story { background: rgba(13,148,136,.9); color: #fff; }
+    .brd-cta-story:hover { background: #0d9488; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(13,148,136,.4); }
+    .brd-stats-row {
+      position: relative; margin-top: 36px;
+      display: flex; gap: 0;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px; overflow: hidden;
+      max-width: 520px;
+    }
+    .brd-stat {
+      flex: 1; padding: 16px 20px; text-align: center;
+      border-right: 1px solid rgba(255,255,255,.06);
+      transition: background .2s;
+    }
+    .brd-stat:last-child { border-right: none; }
+    .brd-stat:hover { background: rgba(255,255,255,.06); }
+    .brd-stat-val { display: block; font-size: 22px; font-weight: 800; color: #fff; }
+    .brd-stat-lbl { display: block; font-size: 10px; color: rgba(255,255,255,.45); margin-top: 2px; letter-spacing: .5px; }
+
+    /* feature section */
+    .brd-features { padding: 48px 48px 40px; background: var(--bg); }
+    .brd-sec-title {
+      font-size: 20px; font-weight: 700; color: var(--text);
+      margin-bottom: 20px;
+    }
+    .brd-feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .brd-feat-card {
+      position: relative; overflow: hidden;
+      border-radius: 14px; padding: 24px;
+      cursor: pointer; transition: transform .2s, box-shadow .2s;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .brd-feat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.15); }
+    .brd-feat-blue  { background: linear-gradient(135deg,#1d4ed8,#2563eb,#3b82f6); color:#fff; }
+    .brd-feat-purple{ background: linear-gradient(135deg,#5b21b6,#7c3aed,#8b5cf6); color:#fff; }
+    .brd-feat-teal  { background: linear-gradient(135deg,#0f766e,#0d9488,#14b8a6); color:#fff; }
+    .brd-feat-icon  { font-size: 28px; }
+    .brd-feat-title { font-size: 16px; font-weight: 700; }
+    .brd-feat-desc  { font-size: 11px; opacity: .8; line-height: 1.6; flex: 1; }
+    .brd-feat-arrow { font-size: 18px; font-weight: 700; opacity: .6; align-self: flex-end; transition: transform .2s; }
+    .brd-feat-card:hover .brd-feat-arrow { transform: translateX(4px); opacity: 1; }
+    .brd-feat-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 80% 0%, rgba(255,255,255,.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ZNT strip */
+    .brd-znt-strip { padding: 40px 48px; background: var(--white); }
+    .brd-znt-strip .brd-sec-title { text-align: center; }
+    .brd-znt-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-top: 4px; }
+    .brd-znt-item {
+      border-radius: 12px; padding: 16px 14px;
+      border: 2px solid var(--c);
+      background: color-mix(in srgb, var(--c) 6%, white);
+      transition: transform .2s, box-shadow .2s;
+      cursor: default;
+    }
+    .brd-znt-item:hover { transform: translateY(-2px); box-shadow: 0 6px 20px color-mix(in srgb, var(--c) 25%, transparent); }
+    .brd-znt-color { width: 100%; height: 8px; border-radius: 4px; background: var(--c); margin-bottom: 10px; }
+    .brd-znt-kelas { font-size: 12px; font-weight: 700; color: var(--c); margin-bottom: 4px; }
+    .brd-znt-range { font-size: 10px; color: var(--muted); margin-bottom: 6px; line-height: 1.4; }
+    .brd-znt-kel   { font-size: 10px; color: var(--text); line-height: 1.4; }
+
+    /* team section */
+    .brd-team { padding: 48px; background: var(--bg); }
+    .brd-team-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; margin-top: -12px; }
+    .brd-team-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; margin-bottom: 28px; }
+    .brd-member {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 18px 20px;
+      position: relative; overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .brd-member:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,.1); }
+    .brd-member-hover-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      transform: scaleX(0); transform-origin: left;
+      transition: transform .25s;
+    }
+    .brd-member:hover .brd-member-hover-bar { transform: scaleX(1); }
+    .brd-member-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .brd-avatar {
+      width: 60px; height: 60px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; color: #fff;
+      overflow: hidden; flex-shrink: 0; position: relative;
+    }
+    .brd-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .brd-avatar-init { position: relative; z-index: 1; }
+    .brd-member-tag {
+      font-size: 10px; font-weight: 700; padding: 3px 8px;
+      border-radius: 99px; letter-spacing: .3px;
+    }
+    .brd-member-name { font-size: 13px; font-weight: 700; line-height: 1.4; color: var(--text); }
+    .brd-member-role { font-size: 11px; color: var(--muted); }
+    .brd-dosen {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 18px;
+      font-size: 12px; color: var(--text);
+    }
+    .brd-dosen span:first-child { color: var(--muted); }
+    .brd-dosen strong { color: var(--text); }
+
+    /* footer note */
+    .story-footer {
+      padding: 20px 40px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    /* map tooltip while hovering */
+    #map-tooltip {
+      position: absolute;
+      bottom: 30px; right: 14px;
+      z-index: 800;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 11px;
+      color: var(--muted);
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      pointer-events: none;
+    }
+    #map-tooltip strong { color: var(--text); display: block; font-size: 12px; margin-bottom: 1px; }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVBAR ── -->
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">🗺</div>
+    <div>
+      <div class="nav-title">WebGIS Zona Nilai Tanah</div>
+      <div class="nav-subtitle">Kecamatan Waru, Kabupaten Sidoarjo</div>
+    </div>
+  </div>
+  <div class="nav-chips">
+    <span class="chip chip-blue">Model AHP</span>
+    <span class="chip chip-green">GIS</span>
+    <span class="chip chip-red">ZNT 2026</span>
+  </div>
+  <div class="nav-spacer"></div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="switchView('beranda')">Beranda</button>
+    <button class="nav-link" onclick="switchView('story')">StoryMap</button>
+    <button class="nav-link" onclick="switchView('dash')">Dashboard</button>
+    <button class="nav-link" onclick="switchView('map')">WebGIS</button>
+  </div>
+</nav>
+
+<!-- ── APP BODY ── -->
+<div class="app-body">
+
+  <!-- ════ MAP VIEW ════ -->
+  <div id="map-view" style="display:none;flex:1;position:relative;overflow:hidden;">
+
+    <!-- LEFT PANEL -->
+    <div class="panel">
+      <div class="panel-tabs">
+        <div class="ptab active" onclick="setTab('lapisan',this)">Lapisan</div>
+        <div class="ptab" onclick="setTab('overlay',this)">Overlay</div>
+        <div class="ptab" onclick="setTab('legenda',this)">Legenda</div>
+      </div>
+
+      <!-- TAB: LAPISAN -->
+      <div class="panel-body" id="tab-lapisan">
+
+        <div class="panel-section">
+          <div class="section-label">Data Utama</div>
+          <div class="layer-item">
+            <input type="checkbox" id="chk-choropleth" checked onchange="toggleLayer('choropleth')">
+            <span class="layer-dot" style="background:#ef4444"></span>
+            <span class="layer-name">Zona Nilai Tanah</span>
+            <span class="layer-eye">👁</span>
+          </div>
+          <div style="padding:0 9px 6px;">
+            <input type="range" min="0" max="100" value="70" oninput="setOpacity(this.value)" style="width:calc(100% - 40px);">
+            <span id="val-opacity" style="font-size:11px;font-weight:600;color:var(--blue);float:right;margin-top:2px;">70%</span>
+          </div>
+
+          <div class="layer-item">
+            <input type="checkbox" id="chk-batas" checked onchange="toggleLayer('batas')">
+            <span class="layer-dot" style="background:#3b82f6"></span>
+            <span class="layer-name">Batas Kelurahan</span>
+            <span class="layer-eye">👁</span>
+          </div>
+
+          <div class="layer-item">
+            <input type="checkbox" id="chk-bubble" onchange="toggleLayer('bubble')">
+            <span class="layer-dot" style="background:#7c3aed"></span>
+            <span class="layer-name">Data Harga Tanah</span>
+            <span class="layer-eye">👁</span>
+          </div>
+
+          <div class="layer-item">
+            <input type="checkbox" id="chk-heatmap" onchange="toggleLayer('heatmap')">
+            <span class="layer-dot" style="background:#f59e0b"></span>
+            <span class="layer-name">Heatmap KDE</span>
+            <span class="layer-eye">👁</span>
+          </div>
+          <div class="layer-item">
+            <input type="checkbox" id="chk-jalan" checked onchange="toggleLayer('jalan')">
+            <span class="layer-dot" style="background:#94a3b8;border-radius:2px;"></span>
+            <span class="layer-name">Jaringan Jalan</span>
+            <span class="layer-eye">👁</span>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-label">Layer Analisis</div>
+
+          <div class="layer-item">
+            <input type="checkbox" class="fas-chk" data-cat="kesehatan" onchange="filterFas()">
+            <span class="layer-dot" style="background:#ef4444"></span>
+            <span class="layer-name">Fasilitas Kesehatan</span>
+            <span class="layer-eye">👁</span>
+          </div>
+          <div class="layer-item">
+            <input type="checkbox" class="fas-chk" data-cat="pendidikan" onchange="filterFas()">
+            <span class="layer-dot" style="background:#f59e0b"></span>
+            <span class="layer-name">Fasilitas Pendidikan</span>
+            <span class="layer-eye">👁</span>
+          </div>
+          <div class="layer-item">
+            <input type="checkbox" class="fas-chk" data-cat="ibadah" onchange="filterFas()">
+            <span class="layer-dot" style="background:#8b5cf6"></span>
+            <span class="layer-name">Tempat Ibadah</span>
+            <span class="layer-eye">👁</span>
+          </div>
+          <div class="layer-item">
+            <input type="checkbox" class="fas-chk" data-cat="lainnya" onchange="filterFas()">
+            <span class="layer-dot" style="background:#0d9488"></span>
+            <span class="layer-name">Fasilitas Lainnya</span>
+            <span class="layer-eye">👁</span>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-label">Radius KDE</div>
+          <div style="padding:0 2px;">
+            <input type="range" min="10" max="60" value="25" oninput="setKDE(this.value)">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);">
+              <span>10</span><span id="val-kde" style="color:var(--blue);font-weight:600;">25</span><span>60</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-label">Filter Data</div>
+          <select id="filter-kelas" onchange="applyFilter()">
+            <option value="">Semua Kelas Nilai</option>
+            <option value="Sangat Tinggi">Sangat Tinggi</option>
+            <option value="Tinggi">Tinggi</option>
+            <option value="Sedang">Sedang</option>
+            <option value="Rendah">Rendah</option>
+            <option value="Sangat Rendah">Sangat Rendah</option>
+          </select>
+          <select id="filter-kel" onchange="applyFilter()">
+            <option value="">Semua Kelurahan</option>
+            <option>BERBEK</option>
+            <option>BUNGURASIH</option>
+            <option>JANTI</option>
+            <option>KEDUNGREJO</option>
+            <option>KEPUHKIRIMAN</option>
+            <option>KUREKSARI</option>
+            <option>MEDAENG</option>
+            <option>KEL. NGINGAS</option>
+            <option>PEPELEGI</option>
+            <option>TAMBAKOSO</option>
+            <option>TAMBAKREJO</option>
+            <option>TAMBAKSAWAH</option>
+            <option>TAMBAKSUMUR</option>
+            <option>TROPODO</option>
+            <option>WADUNGASRI</option>
+            <option>WARU</option>
+            <option>WEDORO</option>
+          </select>
+          <input type="text" id="search-bar" placeholder="Cari zona atau koordinat…" oninput="searchZone()">
+          <button class="btn-reset" onclick="resetFilter()">↺&nbsp; Reset Filter</button>
+        </div>
+      </div>
+
+      <!-- TAB: OVERLAY -->
+      <div class="panel-body" id="tab-overlay" style="display:none;">
+        <div class="panel-section">
+          <div class="section-label">Basemap</div>
+          <div class="layer-item" onclick="setBasemap('light')">
+            <input type="radio" name="bm" checked> <span class="layer-name">Light (CartoDB)</span>
+          </div>
+          <div class="layer-item" onclick="setBasemap('osm')">
+            <input type="radio" name="bm"> <span class="layer-name">OpenStreetMap</span>
+          </div>
+          <div class="layer-item" onclick="setBasemap('satellite')">
+            <input type="radio" name="bm"> <span class="layer-name">Satellite (ESRI)</span>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="section-label">Buffer Fasilitas</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7;">
+            Aktifkan layer fasilitas lalu klik titik fasilitas untuk melihat buffer radius di peta.
+          </div>
+          <select onchange="setBufferRadius(this.value)" style="margin-top:8px;">
+            <option value="250">250 meter</option>
+            <option value="500" selected>500 meter</option>
+            <option value="1000">1 km</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TAB: LEGENDA -->
+      <div class="panel-body" id="tab-legenda" style="display:none;">
+        <div class="panel-section">
+          <div class="section-label">Zona Nilai Tanah (ZNT)</div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#7f1d1d"></div><span>Sangat Tinggi (&gt; Rp 7.000.000/m²)</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#ef4444"></div><span>Tinggi (Rp 5.500.000 – 7.000.000)</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#f97316"></div><span>Sedang (Rp 4.000.000 – 5.500.000)</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#3b82f6"></div><span>Rendah (Rp 2.500.000 – 4.000.000)</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#1e3a8a"></div><span>Sangat Rendah (&lt; Rp 2.500.000/m²)</span></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-label">Data Harga (Bubble)</div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#7f1d1d;border-radius:50%;width:18px;height:18px;"></div><span>Sangat Tinggi</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#ef4444;border-radius:50%;width:15px;height:15px;"></div><span>Tinggi</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#f97316;border-radius:50%;width:12px;height:12px;"></div><span>Sedang</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#3b82f6;border-radius:50%;width:9px;height:9px;"></div><span>Rendah</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#1e3a8a;border-radius:50%;width:6px;height:6px;"></div><span>Sangat Rendah</span></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-label">Fasilitas</div>
+          <div class="legend-row"><span class="leg-icon">🏥</span><span>Fasilitas Kesehatan</span></div>
+          <div class="legend-row"><span class="leg-icon">🏫</span><span>Fasilitas Pendidikan</span></div>
+          <div class="legend-row"><span class="leg-icon">🕌</span><span>Tempat Ibadah</span></div>
+          <div class="legend-row"><span class="leg-icon">📍</span><span>Fasilitas Lainnya</span></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-label">Jaringan Jalan</div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#8b5cf6;height:4px;border-radius:2px;"></div><span>Jalan Tol</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#ef4444;height:4px;border-radius:2px;"></div><span>Jalan Arteri</span></div>
+          <div class="legend-row"><div class="leg-swatch" style="background:#f97316;height:3px;border-radius:2px;"></div><span>Jalan Kolektor</span></div>
+        </div>
+        <div class="panel-section">
+          <div class="section-label">Heatmap KDE</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+            <div style="height:10px;flex:1;border-radius:4px;background:linear-gradient(to right,#1e3a8a,#3b82f6,#f97316,#ef4444,#7f1d1d);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px;">
+            <span>Rendah</span><span>Tinggi</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-tip">
+        Aktifkan layer lalu geser opacity. Klik zona untuk detail nilai tanah.
+      </div>
+    </div><!-- panel -->
+
+    <!-- MAP CANVAS -->
+    <div id="map"></div>
+
+    <!-- Coord bar -->
+    <div class="coords-bar" id="coords-bar">
+      <span class="coords-dot"></span>
+      <span id="coord-text">Arahkan kursor ke peta</span>
+      <span style="margin-left:auto;">WGS 84 / EPSG:4326 &nbsp;·&nbsp; ZNT Waru 2026</span>
+    </div>
+
+  </div><!-- map-view -->
+
+  <!-- ════ DASHBOARD VIEW ════ -->
+  <div id="dash-view">
+    <div style="max-width:1080px;margin:0 auto;">
+      <div class="dash-header">
+        <h2>Dashboard Analitik ZNT</h2>
+        <p>Kecamatan Waru · Kabupaten Sidoarjo · 2026</p>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-bar" style="background:#ef4444"></div>
+          <div class="kpi-label">Nilai Tertinggi</div>
+          <div class="kpi-val" style="color:#ef4444">Rp 8,1 Jt</div>
+          <div class="kpi-sub">per m² · Bungurasih (Terminal)II</div></div>
+        <div class="kpi"><div class="kpi-bar" style="background:#3b82f6"></div>
+          <div class="kpi-label">Nilai Terendah</div>
+          <div class="kpi-val" style="color:#3b82f6">Rp 1,9 Jt</div>
+          <div class="kpi-sub">per m² · Tambaksawah — Kelas Sangat Rendah</div></div>
+        <div class="kpi"><div class="kpi-bar" style="background:#22c55e"></div>
+          <div class="kpi-label">Nilai Median Wilayah</div>
+          <div class="kpi-val" style="color:#f97316">Rp 4,1 Jt</div>
+          <div class="kpi-sub">per m²</div></div>
+        <div class="kpi"><div class="kpi-bar" style="background:#f59e0b"></div>
+          <div class="kpi-label">COD (Coeff. of Dispersion)</div>
+          <div class="kpi-val" style="color:#f59e0b">12,8%</div>
+          <div class="kpi-sub">✅ Di bawah ambang 15%</div></div>
+        <div class="kpi"><div class="kpi-bar" style="background:#7c3aed"></div>
+          <div class="kpi-label">Titik Sampel</div>
+          <div class="kpi-val" style="color:#7c3aed">25</div>
+          <div class="kpi-sub">titik observasi lapangan</div></div>
+        <div class="kpi"><div class="kpi-bar" style="background:#0d9488"></div>
+          <div class="kpi-label">Zona Nilai</div>
+          <div class="kpi-val" style="color:#0d9488">5</div>
+          <div class="kpi-sub">Sangat Rendah · Rendah · Sedang · Tinggi · Sangat Tinggi</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div class="card">
+          <div class="card-title">📊 Nilai Rata-rata per Kelurahan</div>
+          <div id="bar-chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📈 Histogram Distribusi Nilai</div>
+          <div id="histogram"></div>
+          <div style="margin-top:10px;font-size:10px;color:var(--muted);display:flex;gap:14px;">
+            <span>▬ Mean: <b style="color:#3b82f6">4,62 Jt</b></span>
+            <span>▬ Median: <b style="color:#22c55e">4,30 Jt</b></span>
+            <span>▬ SD: <b style="color:#ef4444">1,62 Jt</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div class="card">
+          <div class="card-title">🔵 Scatter: Jarak CBD vs Nilai Tanah</div>
+          <div id="scatter"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📦 Box Plot per Zona</div>
+          <div class="box-wrap" id="boxplot"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="card-title" style="margin:0;">📋 Tabel Ringkasan Data</div>
+          <button class="btn-export" onclick="exportCSV()">⬇ Ekspor CSV</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Kelurahan</th><th>Kelas ZNT</th><th>Nilai Min</th>
+                <th>Nilai Max</th><th>Rata-rata</th><th>Median</th>
+                <th>Sampel</th><th>COD</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- dash-view -->
+
+  <!-- ════ STORY VIEW ════ -->
+  <div id="story-view">
+    <div class="story-hero">
+      <h1>Zona Nilai Tanah — Kecamatan Waru</h1>
+      <p>Narasi visual berbasis data · Memahami pola spasial nilai tanah dari konteks wilayah hingga rekomendasi kebijakan</p>
+    </div>
+
+    <div class="story-chaps">
+
+      <div class="chap">
+        <div class="chap-text">
+          <div class="chap-num">Chapter 01</div>
+          <div class="chap-title">Mengenal Wilayah Studi</div>
+          <div class="chap-desc">Kecamatan Waru berada di ujung barat Kabupaten Sidoarjo, berbatasan langsung dengan Surabaya. Posisi strategisnya di antara Terminal Bungurasih, Tol Waru–Gempol, dan kawasan industri menciptakan gradasi nilai tanah yang tinggi dan beragam antar kelurahan.</div>
+        </div>
+        <div class="chap-vis">
+          <div class="info-grid">
+            <div class="info-box"><div class="info-val" style="color:#2563eb">8</div><div class="info-lbl">Kelurahan</div></div>
+            <div class="info-box"><div class="info-val" style="color:#7c3aed">~144</div><div class="info-lbl">km² Luas</div></div>
+            <div class="info-box"><div class="info-val" style="color:#16a34a">~161k</div><div class="info-lbl">Penduduk</div></div>
+            <div class="info-box"><div class="info-val" style="color:#ea580c">1.118</div><div class="info-lbl">Jiwa/km²</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chap rev">
+        <div class="chap-text">
+          <div class="chap-num">Chapter 02</div>
+          <div class="chap-title">Faktor Penentu Nilai Tanah</div>
+          <div class="chap-desc">Model AHP (Analytic Hierarchy Process) menggunakan 4 variabel utama. Aksesibilitas jalan menjadi faktor dominan (35%), diikuti kedekatan fasilitas publik, kepadatan kawasan, dan status lahan peruntukan.</div>
+        </div>
+        <div class="chap-vis">
+          <div class="factor-list">
+            <div class="factor-item"><span class="factor-name">Aksesibilitas Jalan</span><div class="fbar-wrap"><div class="fbar-fill" style="width:35%;background:#2563eb;"></div></div><span class="factor-pct">35%</span></div>
+            <div class="factor-item"><span class="factor-name">Fasilitas Publik</span><div class="fbar-wrap"><div class="fbar-fill" style="width:28%;background:#7c3aed;"></div></div><span class="factor-pct">28%</span></div>
+            <div class="factor-item"><span class="factor-name">Kepadatan Kawasan</span><div class="fbar-wrap"><div class="fbar-fill" style="width:22%;background:#ea580c;"></div></div><span class="factor-pct">22%</span></div>
+            <div class="factor-item"><span class="factor-name">Status Lahan</span><div class="fbar-wrap"><div class="fbar-fill" style="width:15%;background:#16a34a;"></div></div><span class="factor-pct">15%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chap">
+        <div class="chap-text">
+          <div class="chap-num">Chapter 03</div>
+          <div class="chap-title">Pola Spasial Nilai Tanah</div>
+          <div class="chap-desc">Zona nilai tertinggi terkonsentrasi di sepanjang Jl. Ahmad Yani dan kawasan industri Ngingas. Nilai menurun ke arah barat daya (Tropodo, Tambak Sawah) yang didominasi lahan pertanian dan permukiman perdesaan.</div>
+        </div>
+        <div class="chap-vis">
+          <div class="info-grid">
+            <div class="info-box" style="border-left:3px solid #7f1d1d"><div class="info-val" style="color:#7f1d1d">2 Zona</div><div class="info-lbl">Sangat Tinggi</div></div>
+            <div class="info-box" style="border-left:3px solid #ef4444"><div class="info-val" style="color:#ef4444">2 Zona</div><div class="info-lbl">Tinggi</div></div>
+            <div class="info-box" style="border-left:3px solid #f97316"><div class="info-val" style="color:#f97316">6 Zona</div><div class="info-lbl">Sedang</div></div>
+            <div class="info-box" style="border-left:3px solid #1e3a8a"><div class="info-val" style="color:#1e3a8a">2 Zona</div><div class="info-lbl">Sangat Rendah</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chap rev">
+        <div class="chap-text">
+          <div class="chap-num">Chapter 04</div>
+          <div class="chap-title">Analisis Skenario</div>
+          <div class="chap-desc">Simulasi dampak infrastruktur: pembangunan jalan lingkar Tropodo–Pepelegi berpotensi menaikkan nilai tanah 18–25%. Konversi Tambak Sawah ke zona industri ringan dapat mendorong nilai ke kelas Sedang dalam 5 tahun.</div>
+        </div>
+        <div class="chap-vis">
+          <div class="factor-list">
+            <div class="factor-item"><span class="factor-name">Jalan Baru (Tropodo)</span><div class="fbar-wrap"><div class="fbar-fill" style="width:22%;background:#2563eb;"></div></div><span class="factor-pct">+22%</span></div>
+            <div class="factor-item"><span class="factor-name">Stasiun (Pepelegi)</span><div class="fbar-wrap"><div class="fbar-fill" style="width:18%;background:#7c3aed;"></div></div><span class="factor-pct">+18%</span></div>
+            <div class="factor-item"><span class="factor-name">Konversi Tambak Sawah</span><div class="fbar-wrap"><div class="fbar-fill" style="width:35%;background:#ea580c;"></div></div><span class="factor-pct">+35%</span></div>
+            <div class="factor-item"><span class="factor-name">Mall / Pusat Belanja</span><div class="fbar-wrap"><div class="fbar-fill" style="width:28%;background:#16a34a;"></div></div><span class="factor-pct">+28%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chap">
+        <div class="chap-text">
+          <div class="chap-num">Chapter 05</div>
+          <div class="chap-title">Rekomendasi Kebijakan</div>
+          <div class="chap-desc">Tiga rekomendasi berbasis data: (1) Pembaruan NJOP segera untuk Ngingas dan Waru Tengah. (2) Pembangunan akses jalan ke Tropodo untuk mengurangi disparitas nilai. (3) Penetapan zona penyangga hijau di Tambak Sawah.</div>
+        </div>
+        <div class="chap-vis">
+          <div class="factor-list">
+            <div class="factor-item" style="border-left:3px solid #2563eb">📋 <span style="font-size:11px;">Pembaruan NJOP Ngingas & Waru Tengah</span></div>
+            <div class="factor-item" style="border-left:3px solid #7c3aed">🛣️ <span style="font-size:11px;">Akses Jalan Baru Tropodo–Pepelegi</span></div>
+            <div class="factor-item" style="border-left:3px solid #16a34a">🌿 <span style="font-size:11px;">Zona Penyangga Hijau Tambak Sawah</span></div>
+            <div class="factor-item" style="border-left:3px solid #ea580c">🏭 <span style="font-size:11px;">Regulasi Kawasan Industri Ngingas</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- story-chaps -->
+
+    <div class="story-footer">
+      Dosen Pengampu: Udiana W. Deviantari, ST., MT. &nbsp;·&nbsp; Mata Kuliah: Visualisasi Data Interaktif &nbsp;·&nbsp; 2026
+    </div>
+  </div><!-- story-view -->
+
+  <!-- BERANDA VIEW -->
+  <div id="beranda-view" style="flex:1;overflow-y:auto;display:block;">
+
+    <!-- ── HERO ─────────────────────────────────────── -->
+    <section class="brd-hero">
+      <div class="brd-hero-bg"></div>
+      <div class="brd-hero-content">
+        <div class="brd-badge">📍 Kecamatan Waru · Kabupaten Sidoarjo · 2026</div>
+        <h1 class="brd-title">WebGIS<br><span>Zona Nilai Tanah</span></h1>
+        <p class="brd-sub">Sistem visualisasi data interaktif berbasis model nilai tanah menggunakan pendekatan <strong>AHP</strong> dan analisis spasial <strong>GIS</strong>. Dikembangkan untuk tugas Project Based 2 mata kuliah Visualisasi Data Interaktif.</p>
+        <div class="brd-cta-row">
+          <button class="brd-cta brd-cta-primary" onclick="switchView('map')">
+            <span>🗺</span> Buka WebGIS
+          </button>
+          <button class="brd-cta brd-cta-dash" onclick="switchView('dash')">
+            <span>📊</span> Dashboard
+          </button>
+          <button class="brd-cta brd-cta-story" onclick="switchView('story')">
+            <span>📖</span> StoryMap
+          </button>
+        </div>
+      </div>
+      <div class="brd-stats-row">
+        <div class="brd-stat"><span class="brd-stat-val">17</span><span class="brd-stat-lbl">Kelurahan</span></div>
+        <div class="brd-stat"><span class="brd-stat-val">5</span><span class="brd-stat-lbl">Kelas ZNT</span></div>
+        <div class="brd-stat"><span class="brd-stat-val">25</span><span class="brd-stat-lbl">Titik Sampel</span></div>
+        <div class="brd-stat"><span class="brd-stat-val">12,8%</span><span class="brd-stat-lbl">COD Wilayah</span></div>
+      </div>
+    </section>
+
+    <!-- ── FITUR CARDS ───────────────────────────────── -->
+    <section class="brd-features">
+      <h2 class="brd-sec-title">Fitur Aplikasi</h2>
+      <div class="brd-feat-grid">
+        <div class="brd-feat-card brd-feat-blue" onclick="switchView('map')">
+          <div class="brd-feat-icon">🗺</div>
+          <div class="brd-feat-title">WebGIS Interaktif</div>
+          <div class="brd-feat-desc">Choropleth ZNT · Heatmap KDE · Bubble Chart · Layer Fasilitas · Filter Dinamis · Jaringan Jalan</div>
+          <div class="brd-feat-arrow">→</div>
+        </div>
+        <div class="brd-feat-card brd-feat-purple" onclick="switchView('dash')">
+          <div class="brd-feat-icon">📊</div>
+          <div class="brd-feat-title">Dashboard Analitik</div>
+          <div class="brd-feat-desc">6 Kartu KPI · Bar Chart · Histogram · Scatter Plot · Box Plot 5 Kelas · Ekspor CSV</div>
+          <div class="brd-feat-arrow">→</div>
+        </div>
+        <div class="brd-feat-card brd-feat-teal" onclick="switchView('story')">
+          <div class="brd-feat-icon">📖</div>
+          <div class="brd-feat-title">Storymapping</div>
+          <div class="brd-feat-desc">5 Chapter Naratif · Wilayah → Faktor → Pola Spasial → Skenario → Rekomendasi</div>
+          <div class="brd-feat-arrow">→</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ZNT LEGEND STRIP ──────────────────────────── -->
+    <section class="brd-znt-strip">
+      <h2 class="brd-sec-title" style="text-align:center;">Klasifikasi Zona Nilai Tanah</h2>
+      <div class="brd-znt-row">
+        <div class="brd-znt-item" style="--c:#7f1d1d">
+          <div class="brd-znt-color"></div>
+          <div class="brd-znt-kelas">Sangat Tinggi</div>
+          <div class="brd-znt-range">&gt; Rp 7.000.000/m²</div>
+          <div class="brd-znt-kel">Bungurasih · Berbek</div>
+        </div>
+        <div class="brd-znt-item" style="--c:#ef4444">
+          <div class="brd-znt-color"></div>
+          <div class="brd-znt-kelas">Tinggi</div>
+          <div class="brd-znt-range">Rp 5.500.000 – 7.000.000</div>
+          <div class="brd-znt-kel">Waru · Ngingas · Medaeng</div>
+        </div>
+        <div class="brd-znt-item" style="--c:#f97316">
+          <div class="brd-znt-color"></div>
+          <div class="brd-znt-kelas">Sedang</div>
+          <div class="brd-znt-range">Rp 4.000.000 – 5.500.000</div>
+          <div class="brd-znt-kel">Janti · Kureksari · Wedoro &amp; 3 lainnya</div>
+        </div>
+        <div class="brd-znt-item" style="--c:#3b82f6">
+          <div class="brd-znt-color"></div>
+          <div class="brd-znt-kelas">Rendah</div>
+          <div class="brd-znt-range">Rp 2.500.000 – 4.000.000</div>
+          <div class="brd-znt-kel">Pepelegi · Tropodo · Tambakrejo &amp; lainnya</div>
+        </div>
+        <div class="brd-znt-item" style="--c:#1e3a8a">
+          <div class="brd-znt-color"></div>
+          <div class="brd-znt-kelas">Sangat Rendah</div>
+          <div class="brd-znt-range">&lt; Rp 2.500.000/m²</div>
+          <div class="brd-znt-kel">Tambaksawah · Tambakoso</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TIM PENELITI ──────────────────────────────── -->
+    <section class="brd-team">
+      <h2 class="brd-sec-title">Tim Peneliti</h2>
+      <p class="brd-team-sub">Project Based 2 &nbsp;·&nbsp; Visualisasi Data Interaktif &nbsp;·&nbsp; 2026</p>
+      <div class="brd-team-grid">
+
+        <div class="brd-member" data-color="#2563eb">
+          <div class="brd-member-top">
+            <div class="brd-avatar" style="background:linear-gradient(135deg,#2563eb,#7c3aed)">
+              <img src="../assets/img/anggota1.jpg" onerror="this.style.display='none'" alt="">
+              <span class="brd-avatar-init">RF</span>
+            </div>
+            <div class="brd-member-tag" style="background:#eff6ff;color:#2563eb;">Anggota 1</div>
+          </div>
+          <div class="brd-member-name">Raden Fachrengga Ayudha Putra</div>
+          <div class="brd-member-role">GIS Analyst &amp; Data Processing</div>
+          <div class="brd-member-hover-bar" style="background:linear-gradient(90deg,#2563eb,#7c3aed)"></div>
+        </div>
+
+        <div class="brd-member" data-color="#7c3aed">
+          <div class="brd-member-top">
+            <div class="brd-avatar" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">
+              <img src="../assets/img/anggota2.jpg" onerror="this.style.display='none'" alt="">
+              <span class="brd-avatar-init">RA</span>
+            </div>
+            <div class="brd-member-tag" style="background:#faf5ff;color:#7c3aed;">Anggota 2</div>
+          </div>
+          <div class="brd-member-name">Raka Apta Zulfahmi</div>
+          <div class="brd-member-role">WebGIS Developer &amp; Kartografi</div>
+          <div class="brd-member-hover-bar" style="background:linear-gradient(90deg,#7c3aed,#ec4899)"></div>
+        </div>
+
+        <div class="brd-member" data-color="#0d9488">
+          <div class="brd-member-top">
+            <div class="brd-avatar" style="background:linear-gradient(135deg,#0d9488,#2563eb)">
+              <img src="../assets/img/anggota3.jpg" onerror="this.style.display='none'" alt="">
+              <span class="brd-avatar-init">ZI</span>
+            </div>
+            <div class="brd-member-tag" style="background:#f0fdfa;color:#0d9488;">Anggota 3</div>
+          </div>
+          <div class="brd-member-name">Zulkar Iffar'Azza Iman</div>
+          <div class="brd-member-role">Spatial Analysis &amp; Modelling</div>
+          <div class="brd-member-hover-bar" style="background:linear-gradient(90deg,#0d9488,#2563eb)"></div>
+        </div>
+
+        <div class="brd-member" data-color="#ea580c">
+          <div class="brd-member-top">
+            <div class="brd-avatar" style="background:linear-gradient(135deg,#ea580c,#eab308)">
+              <img src="../assets/img/anggota4.jpg" onerror="this.style.display='none'" alt="">
+              <span class="brd-avatar-init">FR</span>
+            </div>
+            <div class="brd-member-tag" style="background:#fff7ed;color:#ea580c;">Anggota 4</div>
+          </div>
+          <div class="brd-member-name">Faris Rahman AL-Faruq</div>
+          <div class="brd-member-role">Dashboard &amp; Storymapping</div>
+          <div class="brd-member-hover-bar" style="background:linear-gradient(90deg,#ea580c,#eab308)"></div>
+        </div>
+
+      </div>
+      <div class="brd-dosen">
+        <span>👩‍🏫 Dosen Pengampu:</span>
+        <strong>Udiana W. Deviantari, ST., MT.</strong>
+        <span style="color:var(--muted)">·</span>
+        <span>Visualisasi Data Interaktif</span>
+      </div>
+    </section>
+
+  </div>
+</div><!-- app-body -->
+
+<script>
+// ══════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════
+const ZONA = [
+  {kelurahan:"JANTI",nilai_min:3200000,nilai_max:5800000,nilai_rata:4400000,nilai_median:4300000,sampel:17,kelas:"Sedang",cod:10.9,faktor:"Kawasan Perumahan Timur",coords:[[-7.34085, 112.74296], [-7.34193, 112.74647], [-7.34568, 112.74607], [-7.34657, 112.74631], [-7.34865, 112.74633], [-7.34938, 112.74614], [-7.35017, 112.74367], [-7.35006, 112.74278], [-7.35025, 112.74128], [-7.35094, 112.7399], [-7.35064, 112.73843], [-7.3513, 112.73739], [-7.35108, 112.73685], [-7.35038, 112.73643], [-7.34793, 112.7367], [-7.34784, 112.73643], [-7.34641, 112.7365], [-7.34618, 112.73632], [-7.34498, 112.73653], [-7.34478, 112.73697], [-7.3452, 112.74198], [-7.34113, 112.74283], [-7.34085, 112.74296]]},
+  {kelurahan:"BUNGURASIH",nilai_min:5000000,nilai_max:9500000,nilai_rata:7200000,nilai_median:7000000,sampel:20,kelas:"Sangat Tinggi",cod:10.5,faktor:"Terminal Purabaya & Akses Tol",coords:[[-7.3419, 112.71567], [-7.34312, 112.71977], [-7.34325, 112.71997], [-7.3445, 112.71973], [-7.34588, 112.72432], [-7.34646, 112.72443], [-7.34657, 112.72498], [-7.34765, 112.72484], [-7.34831, 112.72554], [-7.34839, 112.7264], [-7.34928, 112.7264], [-7.34933, 112.72693], [-7.35099, 112.72681], [-7.35082, 112.72567], [-7.35169, 112.7254], [-7.35299, 112.72471], [-7.35385, 112.72449], [-7.35386, 112.72412], [-7.35329, 112.72312], [-7.35301, 112.72132], [-7.35221, 112.71958], [-7.35219, 112.71814], [-7.35151, 112.71642], [-7.35159, 112.71559], [-7.35124, 112.71497], [-7.35121, 112.71384], [-7.35074, 112.71191], [-7.34943, 112.71387], [-7.34906, 112.71319], [-7.3485, 112.71037], [-7.34461, 112.71135], [-7.34513, 112.71348], [-7.34521, 112.71443], [-7.34454, 112.71481], [-7.34398, 112.71475], [-7.34286, 112.71544], [-7.3419, 112.71567]]},
+  {kelurahan:"KEDUNGREJO",nilai_min:2200000,nilai_max:4000000,nilai_rata:3000000,nilai_median:2900000,sampel:13,kelas:"Rendah",cod:13.1,faktor:"Lahan Pertanian",coords:[[-7.3513, 112.73739], [-7.35218, 112.73694], [-7.35358, 112.73684], [-7.35394, 112.73703], [-7.35429, 112.73758], [-7.3553, 112.73767], [-7.35563, 112.73736], [-7.35589, 112.73627], [-7.35594, 112.73508], [-7.35574, 112.73412], [-7.35589, 112.73308], [-7.35504, 112.72694], [-7.35385, 112.72449], [-7.35299, 112.72471], [-7.35169, 112.7254], [-7.35082, 112.72567], [-7.35099, 112.72681], [-7.34933, 112.72693], [-7.34928, 112.7264], [-7.34839, 112.7264], [-7.34846, 112.72746], [-7.34823, 112.72935], [-7.34813, 112.73315], [-7.34659, 112.73343], [-7.34618, 112.73632], [-7.34641, 112.7365], [-7.34784, 112.73643], [-7.34793, 112.7367], [-7.35038, 112.73643], [-7.35094, 112.73667], [-7.3513, 112.73739]]},
+  {kelurahan:"MEDAENG",nilai_min:3800000,nilai_max:6500000,nilai_rata:5100000,nilai_median:5000000,sampel:20,kelas:"Sedang",cod:11.5,faktor:"Akses Tol & Pasar",coords:[[-7.35027, 112.70999], [-7.35121, 112.71384], [-7.35124, 112.71497], [-7.35159, 112.71559], [-7.35151, 112.71642], [-7.35219, 112.71814], [-7.35221, 112.71958], [-7.35301, 112.72132], [-7.35329, 112.72312], [-7.35355, 112.72374], [-7.35386, 112.72412], [-7.35411, 112.72384], [-7.35735, 112.72274], [-7.35793, 112.72148], [-7.35781, 112.7206], [-7.35741, 112.71999], [-7.3575, 112.71962], [-7.35767, 112.71933], [-7.35827, 112.71922], [-7.35868, 112.7179], [-7.35899, 112.71743], [-7.35937, 112.71721], [-7.35993, 112.71543], [-7.36068, 112.71091], [-7.36102, 112.70669], [-7.3581, 112.70799], [-7.35516, 112.70896], [-7.35027, 112.70999]]},
+  {kelurahan:"KUREKSARI",nilai_min:3200000,nilai_max:5800000,nilai_rata:4300000,nilai_median:4200000,sampel:18,kelas:"Sedang",cod:10.8,faktor:"Fasilitas Pendidikan",coords:[[-7.3637, 112.73929], [-7.36574, 112.73909], [-7.36585, 112.73858], [-7.36608, 112.73857], [-7.36739, 112.73758], [-7.36754, 112.73537], [-7.36742, 112.73528], [-7.36725, 112.73411], [-7.36623, 112.73437], [-7.36473, 112.73448], [-7.36463, 112.73355], [-7.36321, 112.73383], [-7.36308, 112.73326], [-7.36268, 112.73329], [-7.36267, 112.73288], [-7.36224, 112.73278], [-7.36212, 112.73245], [-7.36173, 112.73246], [-7.35982, 112.73187], [-7.35875, 112.73193], [-7.35873, 112.73288], [-7.35708, 112.73348], [-7.35686, 112.73406], [-7.35574, 112.73437], [-7.35596, 112.73574], [-7.35549, 112.7376], [-7.35462, 112.7377], [-7.35429, 112.73758], [-7.35394, 112.73703], [-7.35358, 112.73684], [-7.35218, 112.73694], [-7.3513, 112.73739], [-7.35064, 112.73843], [-7.35094, 112.7399], [-7.35025, 112.74128], [-7.35038, 112.74133], [-7.35059, 112.741], [-7.35343, 112.74096], [-7.35361, 112.74072], [-7.35542, 112.74065], [-7.35583, 112.73903], [-7.35726, 112.73879], [-7.35862, 112.7389], [-7.35991, 112.73849], [-7.36037, 112.73878], [-7.36183, 112.73864], [-7.36235, 112.73883], [-7.36317, 112.73862], [-7.36353, 112.7387], [-7.3637, 112.73929]]},
+  {kelurahan:"WARU",nilai_min:4500000,nilai_max:8500000,nilai_rata:6200000,nilai_median:6000000,sampel:24,kelas:"Tinggi",cod:12.4,faktor:"Akses Jalan Arteri",coords:[[-7.35385, 112.72449], [-7.35504, 112.72694], [-7.35589, 112.73308], [-7.35574, 112.73437], [-7.35686, 112.73406], [-7.35708, 112.73348], [-7.35873, 112.73288], [-7.35875, 112.73193], [-7.35912, 112.73189], [-7.35982, 112.73187], [-7.36173, 112.73246], [-7.36212, 112.73245], [-7.36224, 112.73278], [-7.36267, 112.73288], [-7.36268, 112.73329], [-7.36308, 112.73326], [-7.36321, 112.73383], [-7.36463, 112.73355], [-7.36473, 112.73448], [-7.36623, 112.73437], [-7.36823, 112.73374], [-7.36731, 112.72667], [-7.367, 112.72667], [-7.36683, 112.72647], [-7.36339, 112.72713], [-7.3628, 112.72437], [-7.3628, 112.72421], [-7.36304, 112.72416], [-7.36299, 112.72304], [-7.36226, 112.72166], [-7.36119, 112.72063], [-7.35943, 112.71832], [-7.35849, 112.71945], [-7.35741, 112.71999], [-7.35781, 112.7206], [-7.35793, 112.72148], [-7.35735, 112.72274], [-7.35411, 112.72384], [-7.35386, 112.72412], [-7.35385, 112.72449]]},
+  {kelurahan:"PEPELEGI",nilai_min:2500000,nilai_max:4800000,nilai_rata:3600000,nilai_median:3500000,sampel:16,kelas:"Rendah",cod:13.7,faktor:"Kepadatan Permukiman",coords:[[-7.36738, 112.72726], [-7.36945, 112.72609], [-7.36965, 112.7258], [-7.36967, 112.72527], [-7.36899, 112.72276], [-7.36829, 112.72123], [-7.36689, 112.71907], [-7.36508, 112.71694], [-7.36396, 112.71478], [-7.36293, 112.71367], [-7.36354, 112.71246], [-7.36473, 112.71072], [-7.36244, 112.71045], [-7.36074, 112.70967], [-7.36068, 112.71091], [-7.35993, 112.71543], [-7.35937, 112.71721], [-7.35899, 112.71743], [-7.35868, 112.7179], [-7.35827, 112.71922], [-7.35767, 112.71933], [-7.35741, 112.71999], [-7.35849, 112.71945], [-7.35943, 112.71832], [-7.36119, 112.72063], [-7.36226, 112.72166], [-7.36299, 112.72304], [-7.36304, 112.72416], [-7.3628, 112.72421], [-7.3628, 112.72437], [-7.36339, 112.72713], [-7.36683, 112.72647], [-7.367, 112.72667], [-7.36731, 112.72667], [-7.36738, 112.72726]]},
+  {kelurahan:"BERBEK",nilai_min:4800000,nilai_max:9000000,nilai_rata:6800000,nilai_median:6500000,sampel:25,kelas:"Sangat Tinggi",cod:11.0,faktor:"Kawasan Industri Berbek",coords:[[-7.33851, 112.76315], [-7.33865, 112.76298], [-7.33952, 112.76274], [-7.33987, 112.7635], [-7.34209, 112.76317], [-7.3426, 112.76476], [-7.34253, 112.76549], [-7.34294, 112.7669], [-7.34815, 112.76664], [-7.3504, 112.76625], [-7.3501, 112.76406], [-7.34934, 112.76247], [-7.3492, 112.76172], [-7.35008, 112.76033], [-7.35073, 112.75869], [-7.35127, 112.75807], [-7.35145, 112.7576], [-7.35046, 112.75724], [-7.34811, 112.75747], [-7.34404, 112.75479], [-7.34246, 112.75414], [-7.34214, 112.75357], [-7.34087, 112.75369], [-7.3401, 112.75407], [-7.3385, 112.75416], [-7.33701, 112.75488], [-7.33674, 112.75541], [-7.33695, 112.75684], [-7.33783, 112.76068], [-7.33847, 112.76249], [-7.33851, 112.76315]]},
+  {kelurahan:"WADUNGASRI",nilai_min:2800000,nilai_max:5000000,nilai_rata:3700000,nilai_median:3600000,sampel:15,kelas:"Sedang",cod:12.0,faktor:"Permukiman Baru",coords:[[-7.33832, 112.76498], [-7.33857, 112.76581], [-7.33834, 112.76651], [-7.33918, 112.76672], [-7.34145, 112.76689], [-7.34171, 112.76768], [-7.34179, 112.76875], [-7.34159, 112.76893], [-7.3395, 112.76941], [-7.33948, 112.76984], [-7.33923, 112.77014], [-7.3394, 112.77088], [-7.3391, 112.77122], [-7.3396, 112.77199], [-7.33946, 112.77263], [-7.3399, 112.77406], [-7.33985, 112.7747], [-7.34007, 112.77618], [-7.34036, 112.776], [-7.34428, 112.77542], [-7.34395, 112.77342], [-7.34738, 112.77275], [-7.34752, 112.7723], [-7.34821, 112.7715], [-7.35116, 112.77038], [-7.35094, 112.76829], [-7.35176, 112.76815], [-7.35155, 112.76693], [-7.3512, 112.76621], [-7.34797, 112.76665], [-7.34294, 112.7669], [-7.34253, 112.76549], [-7.3426, 112.76476], [-7.34209, 112.76317], [-7.33987, 112.7635], [-7.33952, 112.76274], [-7.33865, 112.76298], [-7.33851, 112.76315], [-7.33832, 112.76498]]},
+  {kelurahan:"TAMBAKSUMUR",nilai_min:3000000,nilai_max:5500000,nilai_rata:4100000,nilai_median:4000000,sampel:16,kelas:"Sedang",cod:11.2,faktor:"Dekat Jalan Nasional",coords:[[-7.34013, 112.77748], [-7.34207, 112.77744], [-7.34262, 112.77943], [-7.34445, 112.77937], [-7.34473, 112.77954], [-7.34539, 112.78301], [-7.34551, 112.78446], [-7.34515, 112.78524], [-7.34508, 112.78609], [-7.34459, 112.78663], [-7.34396, 112.78893], [-7.34473, 112.79106], [-7.34591, 112.7925], [-7.34639, 112.79362], [-7.34651, 112.79578], [-7.34585, 112.79617], [-7.34575, 112.79646], [-7.34915, 112.79604], [-7.34932, 112.79289], [-7.34875, 112.79256], [-7.34871, 112.7907], [-7.34849, 112.78898], [-7.34822, 112.78822], [-7.34803, 112.78495], [-7.34786, 112.78448], [-7.34768, 112.78226], [-7.35013, 112.78173], [-7.35039, 112.78142], [-7.35037, 112.7803], [-7.34874, 112.78011], [-7.34834, 112.77977], [-7.34829, 112.77822], [-7.34857, 112.77635], [-7.35101, 112.77677], [-7.35255, 112.77757], [-7.35253, 112.77639], [-7.35218, 112.77497], [-7.35111, 112.77344], [-7.35091, 112.77287], [-7.35116, 112.77038], [-7.34821, 112.7715], [-7.34752, 112.7723], [-7.34738, 112.77275], [-7.34395, 112.77342], [-7.34428, 112.77542], [-7.34036, 112.776], [-7.34007, 112.77618], [-7.34013, 112.77748]]},
+  {kelurahan:"KEPUHKIRIMAN",nilai_min:2800000,nilai_max:5200000,nilai_rata:3900000,nilai_median:3800000,sampel:17,kelas:"Rendah",cod:12.8,faktor:"Pasar Tradisional",coords:[[-7.35047, 112.76622], [-7.3512, 112.76621], [-7.35155, 112.76693], [-7.35176, 112.76815], [-7.35311, 112.76802], [-7.35596, 112.76722], [-7.35551, 112.76584], [-7.35547, 112.76457], [-7.35468, 112.75895], [-7.35455, 112.75897], [-7.35441, 112.75792], [-7.35424, 112.75615], [-7.35429, 112.7557], [-7.35463, 112.75526], [-7.35464, 112.75469], [-7.35428, 112.7536], [-7.35333, 112.75316], [-7.35282, 112.75262], [-7.34228, 112.75385], [-7.34258, 112.75422], [-7.34393, 112.75473], [-7.34811, 112.75747], [-7.35046, 112.75724], [-7.35144, 112.75759], [-7.35129, 112.75803], [-7.35071, 112.75873], [-7.35006, 112.76037], [-7.3492, 112.76172], [-7.34934, 112.76247], [-7.3501, 112.76406], [-7.35047, 112.76622]]},
+  {kelurahan:"TAMBAKOSO",nilai_min:1500000,nilai_max:3200000,nilai_rata:2200000,nilai_median:2100000,sampel:12,kelas:"Sangat Rendah",cod:14.0,faktor:"Zona Tambak Terpencil",coords:[[-7.34316, 112.81917], [-7.34338, 112.81988], [-7.34328, 112.82119], [-7.34349, 112.82396], [-7.34345, 112.82508], [-7.34322, 112.82592], [-7.34597, 112.82628], [-7.34605, 112.82684], [-7.34785, 112.82681], [-7.35088, 112.82753], [-7.35223, 112.82757], [-7.35389, 112.82702], [-7.35668, 112.82554], [-7.35967, 112.82471], [-7.36054, 112.82425], [-7.36122, 112.82336], [-7.36117, 112.82235], [-7.36068, 112.82161], [-7.35816, 112.81877], [-7.35774, 112.8179], [-7.35771, 112.81726], [-7.35855, 112.8155], [-7.35894, 112.81509], [-7.35963, 112.81476], [-7.36053, 112.81478], [-7.36234, 112.81586], [-7.3629, 112.81583], [-7.36343, 112.81554], [-7.36395, 112.815], [-7.36469, 112.81272], [-7.366, 112.81058], [-7.36629, 112.80967], [-7.36633, 112.80892], [-7.36486, 112.80611], [-7.36433, 112.80216], [-7.36435, 112.80145], [-7.36521, 112.80017], [-7.36102, 112.80022], [-7.36079, 112.79998], [-7.36027, 112.79864], [-7.3596, 112.79781], [-7.35886, 112.79739], [-7.35766, 112.79721], [-7.35603, 112.7973], [-7.34994, 112.7985], [-7.34506, 112.79913], [-7.34552, 112.79965], [-7.34527, 112.80087], [-7.34563, 112.80223], [-7.34557, 112.8038], [-7.34608, 112.80572], [-7.34653, 112.80636], [-7.34575, 112.80676], [-7.34575, 112.80846], [-7.34607, 112.80899], [-7.34672, 112.80941], [-7.3462, 112.81079], [-7.34631, 112.81102], [-7.3469, 112.81141], [-7.34678, 112.8118], [-7.34628, 112.81216], [-7.34636, 112.81268], [-7.3461, 112.81316], [-7.34618, 112.8138], [-7.34504, 112.81537], [-7.34408, 112.81733], [-7.3444, 112.81857], [-7.34421, 112.81874], [-7.34321, 112.8188], [-7.34316, 112.81917]]},
+  {kelurahan:"TAMBAKREJO",nilai_min:2600000,nilai_max:4600000,nilai_rata:3500000,nilai_median:3400000,sampel:14,kelas:"Rendah",cod:12.5,faktor:"Permukiman Tepi Tol",coords:[[-7.34491, 112.79865], [-7.34506, 112.79913], [-7.34591, 112.79907], [-7.34672, 112.79884], [-7.34994, 112.7985], [-7.35586, 112.79733], [-7.35766, 112.79721], [-7.35886, 112.79739], [-7.3596, 112.79781], [-7.36027, 112.79864], [-7.36079, 112.79998], [-7.36102, 112.80022], [-7.36211, 112.8003], [-7.36523, 112.80014], [-7.36535, 112.79862], [-7.36308, 112.79592], [-7.36249, 112.79204], [-7.36169, 112.79114], [-7.36115, 112.78986], [-7.3612, 112.78945], [-7.36181, 112.78842], [-7.3619, 112.78766], [-7.36043, 112.78577], [-7.3606, 112.78506], [-7.36112, 112.78398], [-7.36128, 112.78115], [-7.3602, 112.77884], [-7.35935, 112.77746], [-7.35596, 112.76722], [-7.35311, 112.76802], [-7.35094, 112.76829], [-7.35117, 112.76999], [-7.35091, 112.77287], [-7.35111, 112.77344], [-7.35218, 112.77497], [-7.35253, 112.77639], [-7.35255, 112.77757], [-7.35101, 112.77677], [-7.34857, 112.77635], [-7.34829, 112.77822], [-7.34834, 112.77977], [-7.34874, 112.78011], [-7.35037, 112.7803], [-7.35039, 112.78142], [-7.35013, 112.78173], [-7.34768, 112.78226], [-7.34786, 112.78448], [-7.34803, 112.78495], [-7.34822, 112.78822], [-7.34849, 112.78898], [-7.34871, 112.7907], [-7.34875, 112.79256], [-7.34931, 112.79285], [-7.3492, 112.79594], [-7.34893, 112.7961], [-7.34575, 112.79646], [-7.34536, 112.79697], [-7.34523, 112.79816], [-7.34491, 112.79865]]},
+  {kelurahan:"TROPODO",nilai_min:2100000,nilai_max:4200000,nilai_rata:2900000,nilai_median:2800000,sampel:15,kelas:"Rendah",cod:14.2,faktor:"Jarak ke CBD Jauh",coords:[[-7.35551, 112.76584], [-7.35848, 112.76454], [-7.36183, 112.76432], [-7.36174, 112.76461], [-7.36194, 112.76737], [-7.36499, 112.76725], [-7.36596, 112.76745], [-7.36641, 112.76469], [-7.36543, 112.76223], [-7.36494, 112.7605], [-7.36352, 112.75115], [-7.35903, 112.75242], [-7.35688, 112.75337], [-7.35436, 112.75395], [-7.35465, 112.75499], [-7.35456, 112.75549], [-7.35429, 112.7557], [-7.35424, 112.75633], [-7.35547, 112.76457], [-7.35551, 112.76584]]},
+  {kelurahan:"TAMBAKSAWAH",nilai_min:1400000,nilai_max:3000000,nilai_rata:2000000,nilai_median:1900000,sampel:12,kelas:"Sangat Rendah",cod:15.3,faktor:"Zona Tambak & Sawah",coords:[[-7.35551, 112.76584], [-7.35935, 112.77746], [-7.3602, 112.77884], [-7.36128, 112.78115], [-7.36112, 112.78398], [-7.3606, 112.78506], [-7.36043, 112.78577], [-7.3619, 112.78766], [-7.36181, 112.78842], [-7.3612, 112.78945], [-7.36117, 112.7899], [-7.36169, 112.79114], [-7.36249, 112.79204], [-7.36308, 112.79592], [-7.36535, 112.79862], [-7.36678, 112.7963], [-7.36791, 112.79482], [-7.36835, 112.79351], [-7.36761, 112.79122], [-7.36701, 112.78992], [-7.36716, 112.78948], [-7.36669, 112.78906], [-7.36648, 112.78852], [-7.36646, 112.78811], [-7.3667, 112.78778], [-7.36624, 112.78695], [-7.36649, 112.78661], [-7.36622, 112.78612], [-7.36613, 112.78436], [-7.36592, 112.78376], [-7.36602, 112.78291], [-7.36572, 112.78175], [-7.366, 112.77946], [-7.36542, 112.77896], [-7.36526, 112.77841], [-7.36432, 112.77672], [-7.36446, 112.77499], [-7.36596, 112.76745], [-7.36499, 112.76725], [-7.36194, 112.76737], [-7.36174, 112.76461], [-7.36183, 112.76432], [-7.35848, 112.76454], [-7.35551, 112.76584]]},
+  {kelurahan:"KEL. NGINGAS",nilai_min:4200000,nilai_max:7800000,nilai_rata:5900000,nilai_median:5800000,sampel:22,kelas:"Tinggi",cod:11.9,faktor:"Kawasan Industri Ngingas",coords:[[-7.35254, 112.7521], [-7.35333, 112.75316], [-7.35428, 112.7536], [-7.35436, 112.75395], [-7.35688, 112.75337], [-7.35903, 112.75242], [-7.36352, 112.75115], [-7.36283, 112.74645], [-7.3642, 112.74617], [-7.36507, 112.74549], [-7.36481, 112.74292], [-7.36446, 112.74209], [-7.3645, 112.74119], [-7.3639, 112.74046], [-7.36353, 112.7387], [-7.36317, 112.73862], [-7.36235, 112.73883], [-7.36183, 112.73864], [-7.36037, 112.73878], [-7.35991, 112.73849], [-7.35862, 112.7389], [-7.35726, 112.73879], [-7.35583, 112.73903], [-7.35542, 112.74065], [-7.35361, 112.74072], [-7.35343, 112.74096], [-7.35059, 112.741], [-7.35038, 112.74133], [-7.35025, 112.74128], [-7.35006, 112.74278], [-7.35017, 112.74367], [-7.34965, 112.74542], [-7.35214, 112.74552], [-7.35289, 112.74575], [-7.35484, 112.74578], [-7.35524, 112.74624], [-7.35547, 112.74775], [-7.35503, 112.74817], [-7.35388, 112.74858], [-7.35383, 112.74919], [-7.35307, 112.74947], [-7.3527, 112.74921], [-7.3525, 112.7497], [-7.35236, 112.75065], [-7.35262, 112.75135], [-7.35254, 112.7521]]},
+  {kelurahan:"WEDORO",nilai_min:3400000,nilai_max:6200000,nilai_rata:4600000,nilai_median:4500000,sampel:18,kelas:"Sedang",cod:11.3,faktor:"Kawasan Perumahan & Komersial",coords:[[-7.34193, 112.74647], [-7.3424, 112.74806], [-7.34219, 112.74892], [-7.34236, 112.75241], [-7.34214, 112.75357], [-7.34228, 112.75385], [-7.35282, 112.75262], [-7.35254, 112.7521], [-7.35262, 112.75135], [-7.35236, 112.75065], [-7.3527, 112.74921], [-7.35307, 112.74947], [-7.35383, 112.74919], [-7.35388, 112.74858], [-7.35503, 112.74817], [-7.35547, 112.74775], [-7.35524, 112.74624], [-7.35484, 112.74578], [-7.35289, 112.74575], [-7.35214, 112.74552], [-7.34965, 112.74542], [-7.34938, 112.74614], [-7.34865, 112.74633], [-7.34657, 112.74631], [-7.34568, 112.74607], [-7.34193, 112.74647]]}
+];
+
+const SAMPEL = [
+  {id:1,  nama:"Bungurasih — Terminal Purabaya",    lat:-7.3460,lng:112.7140,harga:9200000,kelas:"Sangat Tinggi",cbd:3.0},
+  {id:2,  nama:"Berbek — Kawasan Industri I",       lat:-7.3400,lng:112.7530,harga:8800000,kelas:"Sangat Tinggi",cbd:3.2},
+  {id:3,  nama:"Bungurasih — Dekat Pintu Tol",      lat:-7.3510,lng:112.7230,harga:7600000,kelas:"Sangat Tinggi",cbd:3.1},
+  {id:4,  nama:"Berbek — Ruko Ahmad Yani",          lat:-7.3470,lng:112.7640,harga:7200000,kelas:"Sangat Tinggi",cbd:3.4},
+  {id:5,  nama:"Waru — Jl Raya Waru",              lat:-7.3600,lng:112.7280,harga:6800000,kelas:"Tinggi",cbd:3.7},
+  {id:6,  nama:"Kel. Ngingas — Industri",           lat:-7.3570,lng:112.7450,harga:6400000,kelas:"Tinggi",cbd:4.0},
+  {id:7,  nama:"Waru — Ruko Komersial",             lat:-7.3620,lng:112.7320,harga:6100000,kelas:"Tinggi",cbd:3.8},
+  {id:8,  nama:"Medaeng — Akses Tol",               lat:-7.3540,lng:112.7130,harga:5800000,kelas:"Tinggi",cbd:4.5},
+  {id:9,  nama:"Wadungasri — Perumahan",            lat:-7.3420,lng:112.7680,harga:5600000,kelas:"Tinggi",cbd:4.3},
+  {id:10, nama:"Janti — Kawasan Timur",             lat:-7.3450,lng:112.7430,harga:5200000,kelas:"Sedang",cbd:4.0},
+  {id:11, nama:"Wedoro — Komersial",                lat:-7.3500,lng:112.7510,harga:4800000,kelas:"Sedang",cbd:4.1},
+  {id:12, nama:"Tambaksumur — Jl Nasional",         lat:-7.3460,lng:112.7810,harga:4500000,kelas:"Sedang",cbd:4.6},
+  {id:13, nama:"Kureksari — Jl Kureksari",          lat:-7.3590,lng:112.7360,harga:4300000,kelas:"Sedang",cbd:5.2},
+  {id:14, nama:"Wadungasri — Perumahan Baru",       lat:-7.3460,lng:112.7730,harga:4100000,kelas:"Sedang",cbd:4.4},
+  {id:15, nama:"Kepuhkiriman — Pasar",              lat:-7.3510,lng:112.7590,harga:3900000,kelas:"Rendah",cbd:4.8},
+  {id:16, nama:"Pepelegi — Jl Pepelegi",            lat:-7.3640,lng:112.7190,harga:3600000,kelas:"Rendah",cbd:5.8},
+  {id:17, nama:"Tambakrejo — Dekat Tol",            lat:-7.3540,lng:112.7840,harga:3500000,kelas:"Rendah",cbd:5.5},
+  {id:18, nama:"Kedungrejo — Tepi Jalan",           lat:-7.3510,lng:112.7310,harga:3000000,kelas:"Rendah",cbd:6.5},
+  {id:19, nama:"Tropodo — Jl Tropodo",              lat:-7.3600,lng:112.7590,harga:2900000,kelas:"Rendah",cbd:6.2},
+  {id:20, nama:"Tropodo — Tepi Sawah",              lat:-7.3550,lng:112.7170,harga:2600000,kelas:"Rendah",cbd:6.8},
+  {id:21, nama:"Tambaksawah — Lahan Sawah",         lat:-7.3630,lng:112.7790,harga:2000000,kelas:"Sangat Rendah",cbd:7.5},
+  {id:22, nama:"Tambakoso — Zona Tambak Timur",     lat:-7.3540,lng:112.8110,harga:2200000,kelas:"Sangat Rendah",cbd:7.8},
+  {id:23, nama:"Tambaksawah — Tepi Tambak",         lat:-7.3680,lng:112.7690,harga:1800000,kelas:"Sangat Rendah",cbd:8.0},
+  {id:24, nama:"Tambakoso — Lahan Kosong",          lat:-7.3490,lng:112.7990,harga:1600000,kelas:"Sangat Rendah",cbd:8.2},
+  {id:25, nama:"Tambaksawah — Tambak Udang",        lat:-7.3720,lng:112.7810,harga:1500000,kelas:"Sangat Rendah",cbd:8.5}
+];
+
+const FASILITAS = [
+  {nama:'Fasilitas Kesehatan Lainnya',kat:'kesehatan',icon:'🏥',lat:-7.355952,lng:112.720121},
+  {nama:'Fasilitas Kesehatan Lainnya',kat:'kesehatan',icon:'🏥',lat:-7.357235,lng:112.741927},
+  {nama:'Fasilitas Kesehatan Lainnya',kat:'kesehatan',icon:'🏥',lat:-7.35215,lng:112.766274},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.347549,lng:112.747731},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.349751,lng:112.739709},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.354105,lng:112.710109},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.354712,lng:112.728415},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.35581,lng:112.72096},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.356332,lng:112.735058},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.356914,lng:112.739309},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.359539,lng:112.729839},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.343327,lng:112.766101},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.344041,lng:112.769136},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.345262,lng:112.750325},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.345505,lng:112.76047},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.347051,lng:112.762357},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.347683,lng:112.776023},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.349076,lng:112.759744},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.349645,lng:112.760615},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.349854,lng:112.754242},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.349936,lng:112.766976},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.35083,lng:112.750587},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.351081,lng:112.776021},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.351432,lng:112.7651},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.353064,lng:112.774588},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.353399,lng:112.765005},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.35375,lng:112.775751},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.354789,lng:112.777033},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.355098,lng:112.778959},
+  {nama:'Pendidikan/Penelitian Lainnya',kat:'pendidikan',icon:'🏫',lat:-7.36149,lng:112.779555},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.343111,lng:112.717962},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.347365,lng:112.738536},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.348823,lng:112.733499},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.348842,lng:112.746742},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.349253,lng:112.748319},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.350318,lng:112.734322},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.350661,lng:112.739206},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.351556,lng:112.723015},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.354744,lng:112.717704},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.355037,lng:112.735276},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.356358,lng:112.741222},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.356348,lng:112.746343},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.356491,lng:112.709535},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.356423,lng:112.738718},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.356577,lng:112.72972},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.356736,lng:112.743603},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.357591,lng:112.738534},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.358237,lng:112.734306},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.35926,lng:112.737318},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.359503,lng:112.733734},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.360991,lng:112.726271},
+  {nama:'Gereja',kat:'ibadah',icon:'⛪',lat:-7.361019,lng:112.729769},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.362365,lng:112.733763},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.363015,lng:112.716702},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.364567,lng:112.721755},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.366614,lng:112.737926},
+  {nama:'Peribadatan/Sosial Lainnya',kat:'ibadah',icon:'⛪',lat:-7.341462,lng:112.764636},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.344145,lng:112.767526},
+  {nama:'Peribadatan/Sosial Lainnya',kat:'ibadah',icon:'⛪',lat:-7.344485,lng:112.764152},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.344683,lng:112.753045},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.345108,lng:112.755499},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.34622,lng:112.803398},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.347819,lng:112.775544},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.348793,lng:112.760358},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.349228,lng:112.753318},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.349918,lng:112.771977},
+  {nama:'Peribadatan/Sosial Lainnya',kat:'ibadah',icon:'⛪',lat:-7.3506,lng:112.764733},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.350812,lng:112.761701},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.35143,lng:112.759586},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.352496,lng:112.755079},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.353248,lng:112.764033},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.353407,lng:112.775111},
+  {nama:'Masjid',kat:'ibadah',icon:'🕌',lat:-7.364482,lng:112.77253},
+  {nama:'Kantor Pos Lainnya',kat:'kantorpos',icon:'📮',lat:-7.351457,lng:112.767877}
+];
+
+const JALAN = [{"nama": "Jl Tol Waru–Juanda (E-W)", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.7033, -7.348], [112.715, -7.3476], [112.728, -7.3472], [112.742, -7.3468], [112.755, -7.3464], [112.768, -7.3462], [112.781, -7.3461], [112.795, -7.3462], [112.8086, -7.3465]]}, {"nama": "Jl Raya Waru / Jl Ahmad Yani", "jenis": "arteri", "warna": "#ef4444", "lebar": 4, "coords": [[112.704, -7.364], [112.71, -7.361], [112.716, -7.358], [112.721, -7.356], [112.728, -7.353], [112.734, -7.3515], [112.741, -7.3505], [112.748, -7.3498], [112.755, -7.3493], [112.762, -7.3492], [112.77, -7.3493], [112.778, -7.3496], [112.786, -7.35], [112.794, -7.3506], [112.803, -7.3514], [112.8086, -7.352]]}, {"nama": "Jl Insinyur Haji Juanda", "jenis": "arteri", "warna": "#ef4444", "lebar": 4, "coords": [[112.7033, -7.372], [112.71, -7.37], [112.72, -7.368], [112.73, -7.3665], [112.742, -7.3655], [112.756, -7.3648], [112.77, -7.3645], [112.784, -7.3645], [112.798, -7.3648], [112.8086, -7.3654]]}, {"nama": "Jl Tol Surabaya–Gempol (N-S)", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.7155, -7.338], [112.7152, -7.343], [112.715, -7.348], [112.7148, -7.354], [112.7147, -7.36], [112.7148, -7.366], [112.715, -7.372], [112.7153, -7.378], [112.7158, -7.3861]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.704264, -7.349923], [112.704582, -7.349816], [112.704961, -7.349687], [112.705183, -7.349648], [112.705395, -7.349654], [112.705809, -7.349762], [112.706931, -7.350004], [112.707327, -7.350096], [112.707727, -7.35019], [112.707765, -7.350199], [112.708417, -7.350321], [112.708552, -7.350355], [112.708651, -7.35038], [112.709014, -7.350465], [112.709713, -7.350628], [112.70992, -7.350676], [112.710142, -7.350728], [112.710292, -7.350763], [112.710411, -7.350791], [112.710574, -7.350813]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.710574, -7.350813], [112.710627, -7.350874], [112.71142, -7.351099], [112.711839, -7.351165], [112.71196, -7.351187], [112.712175, -7.351226], [112.712576, -7.351298], [112.712696, -7.35131], [112.713209, -7.351362], [112.713646, -7.351444], [112.713901, -7.351492], [112.714768, -7.35162], [112.716237, -7.352125], [112.716686, -7.352275], [112.716803, -7.352314], [112.717315, -7.352385], [112.71757, -7.352411], [112.718182, -7.352469], [112.718313, -7.352477], [112.718706, -7.3525], [112.719051, -7.352573], [112.719431, -7.352713], [112.721132, -7.35321], [112.721446, -7.35332], [112.721475, -7.353335], [112.721522, -7.35335], [112.722089, -7.353494], [112.72238, -7.353607], [112.722444, -7.353632], [112.722546, -7.353672], [112.722959, -7.353807], [112.723048, -7.353835], [112.723511, -7.353985], [112.723843, -7.354109], [112.723871, -7.354119], [112.724378, -7.354316], [112.724714, -7.354446], [112.725375, -7.354744], [112.726028, -7.355062], [112.726536, -7.355234], [112.726877, -7.355314], [112.727219, -7.355341], [112.727567, -7.355351], [112.727944, -7.355423], [112.728658, -7.355546], [112.728925, -7.355563], [112.729063, -7.355569]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.710574, -7.350813], [112.711011, -7.350873], [112.711336, -7.35088], [112.711839, -7.350788], [112.71187, -7.350769], [112.711914, -7.350744], [112.712006, -7.350692], [112.712144, -7.350608], [112.712213, -7.350565], [112.712384, -7.350457], [112.712818, -7.350184], [112.713167, -7.349937], [112.713508, -7.349697], [112.713758, -7.349521], [112.713817, -7.34948], [112.713878, -7.349429], [112.713935, -7.349382], [112.714091, -7.34927], [112.71524, -7.348395], [112.715393, -7.348291], [112.715497, -7.348221], [112.716049, -7.347847], [112.716127, -7.347775], [112.71642, -7.347533], [112.716898, -7.347173], [112.717081, -7.347038], [112.717183, -7.346961], [112.717557, -7.346694], [112.71807, -7.346346], [112.71854, -7.346089], [112.718826, -7.345954], [112.719286, -7.345844], [112.720086, -7.345809], [112.720552, -7.345817], [112.720965, -7.345859], [112.721001, -7.345863], [112.721345, -7.345973], [112.721705, -7.346088], [112.722119, -7.346234], [112.722176, -7.346251], [112.722755, -7.346431], [112.722777, -7.346432], [112.723002, -7.346461], [112.723367, -7.34655], [112.723885, -7.346663], [112.724619, -7.346781], [112.724983, -7.34679], [112.724983, -7.34679]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.729001, -7.348282], [112.729125, -7.348533], [112.729259, -7.348864], [112.72931, -7.34899]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.729085, -7.352568], [112.729183, -7.3511], [112.729185, -7.351061], [112.72919, -7.350965], [112.729208, -7.350649], [112.729233, -7.350189], [112.729303, -7.349258], [112.72931, -7.34899]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.729228, -7.357746], [112.729265, -7.358118], [112.72927, -7.358459], [112.729279, -7.358681], [112.729288, -7.358925], [112.729313, -7.359686], [112.72934, -7.36134], [112.729317, -7.362031], [112.729281, -7.363074], [112.729279, -7.363144], [112.729285, -7.363502], [112.729289, -7.363707], [112.729271, -7.364224], [112.729265, -7.364387], [112.729215, -7.36582], [112.729203, -7.366168], [112.729187, -7.366703], [112.729178, -7.367555], [112.729189, -7.367554], [112.72918, -7.367651], [112.729171, -7.367744], [112.729201, -7.367748], [112.729148, -7.368143], [112.729138, -7.368535], [112.729137, -7.368673], [112.729133, -7.369184], [112.729126, -7.369444], [112.729123, -7.369588], [112.729109, -7.370108], [112.729109, -7.370417], [112.729118, -7.370417], [112.729118, -7.370452], [112.729116, -7.370862]]}, {"nama": "Jalan Tol", "jenis": "tol", "warna": "#7c3aed", "lebar": 5, "coords": [[112.72931, -7.34899], [112.729303, -7.348477], [112.729302, -7.34824]]}, {"nama": "Jalan Arteri", "jenis": "arteri", "warna": "#ef4444", "lebar": 4, "coords": [[112.703676, -7.365889], [112.703681, -7.365882], [112.703686, -7.365876], [112.703908, -7.365548], [112.704085, -7.365297], [112.704606, -7.364636], [112.705526, -7.363168], [112.70582, -7.362632], [112.706114, -7.362135], [112.706421, -7.361609], [112.706627, -7.361188], [112.706658, -7.361098], [112.706688, -7.361021], [112.70673, -7.360917], [112.706959, -7.360445], [112.70713, -7.360096], [112.707321, -7.359648], [112.707991, -7.358099], [112.708531, -7.356509], [112.708708, -7.355955], [112.708708, -7.355955], [112.708961, -7.355164], [112.7091, -7.354526], [112.70915, -7.354294], [112.709167, -7.354216], [112.709502, -7.352761], [112.709794, -7.351325], [112.709824, -7.351171], [112.709858, -7.350994], [112.70992, -7.350676], [112.709999, -7.35027], [112.710058, -7.349966], [112.710236, -7.34911], [112.710351, -7.34858], [112.710364, -7.348522], [112.710369, -7.348497], [112.710376, -7.348464], [112.710466, -7.348053], [112.710617, -7.347375], [112.710734, -7.346858], [112.710947, -7.346079], [112.711187, -7.345191], [112.711193, -7.345174], [112.711206, -7.345132], [112.711354, -7.344611], [112.711532, -7.343987], [112.711648, -7.343618], [112.711766, -7.343242], [112.711881, -7.342915], [112.711913, -7.342825], [112.712058, -7.342361], [112.712203, -7.341923], [112.712604, -7.340772], [112.712726, -7.340384], [112.71274, -7.340339], [112.712763, -7.340263], [112.712972, -7.339474], [112.713064, -7.339196], [112.713115, -7.339055], [112.713115, -7.339055]]}, {"nama": "Jalan Kolektor", "jenis": "kolektor", "warna": "#f97316", "lebar": 2.5, "coords": [[112.729185, -7.351061], [112.729389, -7.351058], [112.729426, -7.351057], [112.729612, -7.351055], [112.731221, -7.351038], [112.732814, -7.351084], [112.733123, -7.351086], [112.733757, -7.35109], [112.733893, -7.351088], [112.734156, -7.351084], [112.735365, -7.351057], [112.735452, -7.351055], [112.736272, -7.351023], [112.736532, -7.350992], [112.736665, -7.350943], [112.737786, -7.350529], [112.738752, -7.350386], [112.739186, -7.350368], [112.739437, -7.350358], [112.739823, -7.350305], [112.740168, -7.350225], [112.741136, -7.34992], [112.741508, -7.349803], [112.74186, -7.349677], [112.741881, -7.349669], [112.742588, -7.349452], [112.74294, -7.349373], [112.742996, -7.349361], [112.743638, -7.349331], [112.743668, -7.349331], [112.744464, -7.349204], [112.74487, -7.349045], [112.745314, -7.3489], [112.745472, -7.348881], [112.74625, -7.349087], [112.746462, -7.34914], [112.747001, -7.349204], [112.747277, -7.349262], [112.747349, -7.349277], [112.747593, -7.349336], [112.74795, -7.349425], [112.748501, -7.349547], [112.74908, -7.349649], [112.749218, -7.349669], [112.749407, -7.349695], [112.749999, -7.349786], [112.749999, -7.349786], [112.750315, -7.349833], [112.750694, -7.349891], [112.751109, -7.349927], [112.751439, -7.349951], [112.751811, -7.349939], [112.752222, -7.349859], [112.752461, -7.34983], [112.752614, -7.349835], [112.752858, -7.349888], [112.752981, -7.349915], [112.753012, -7.349924], [112.753119, -7.349954], [112.753337, -7.350015], [112.753691, -7.350108], [112.753867, -7.350157], [112.753992, -7.350191], [112.754493, -7.350293], [112.754509, -7.350294], [112.754869, -7.350329], [112.755688, -7.350406], [112.755728, -7.350407], [112.756041, -7.350417], [112.757241, -7.350457], [112.757482, -7.350466], [112.757866, -7.350445], [112.758243, -7.350413], [112.758672, -7.350416], [112.758758, -7.350405], [112.758899, -7.350387], [112.759081, -7.350364], [112.759359, -7.350238], [112.759572, -7.350081], [112.759784, -7.349885], [112.759974, -7.349709], [112.760113, -7.34953], [112.760129, -7.34951], [112.760294, -7.349361], [112.760917, -7.349108], [112.761049, -7.349072], [112.761485, -7.348951], [112.7618, -7.348932], [112.761939, -7.348952], [112.762333, -7.349139], [112.762719, -7.349321], [112.762906, -7.349393], [112.763228, -7.349517], [112.763253, -7.34952], [112.763319, -7.349535], [112.764609, -7.349826], [112.764926, -7.349889], [112.76531, -7.349935], [112.765947, -7.349997], [112.76626, -7.350049], [112.766305, -7.350057], [112.766741, -7.350138], [112.767015, -7.350182], [112.767305, -7.350238], [112.767543, -7.350311]]}, {"nama": "Jalan Kolektor", "jenis": "kolektor", "warna": "#f97316", "lebar": 2.5, "coords": [[112.763481, -7.370099], [112.763433, -7.369928], [112.763397, -7.369693], [112.763391, -7.369657], [112.76344, -7.368923], [112.763465, -7.368534], [112.763477, -7.368364], [112.763564, -7.367678], [112.763622, -7.367228], [112.763699, -7.366872], [112.76377, -7.366527], [112.763872, -7.366208], [112.763899, -7.36612], [112.763907, -7.36606], [112.76392, -7.36596], [112.763919, -7.365868], [112.763946, -7.365615], [112.764041, -7.364746], [112.764098, -7.364283], [112.764122, -7.364026], [112.764088, -7.363829], [112.764062, -7.363606], [112.764039, -7.363417], [112.764128, -7.362958], [112.764195, -7.362572], [112.764323, -7.361835], [112.764442, -7.360682], [112.764443, -7.360649], [112.764454, -7.360327], [112.764463, -7.360057], [112.764463, -7.360027], [112.764479, -7.359542], [112.76448, -7.359514], [112.764498, -7.359187], [112.764516, -7.358872], [112.764537, -7.358499], [112.764538, -7.358484], [112.764632, -7.358116], [112.764781, -7.357714], [112.765062, -7.357155], [112.765447, -7.356391], [112.76561, -7.356068], [112.765837, -7.355507], [112.76591, -7.355328], [112.766344, -7.353931], [112.766454, -7.353287], [112.766572, -7.352596], [112.76681, -7.351678], [112.766826, -7.351504], [112.766926, -7.351556], [112.767244, -7.351619], [112.767259, -7.351621], [112.767346, -7.35098], [112.76736, -7.350871], [112.767384, -7.350796], [112.767432, -7.350645], [112.76746, -7.350559], [112.767509, -7.350367], [112.767543, -7.350311]]}, {"nama": "Jalan Kolektor", "jenis": "kolektor", "warna": "#f97316", "lebar": 2.5, "coords": [[112.767543, -7.350311], [112.76758, -7.350225], [112.767622, -7.350127], [112.767601, -7.349492], [112.767586, -7.349057], [112.767652, -7.348269], [112.767867, -7.346855], [112.767915, -7.346486], [112.768022, -7.345664], [112.768061, -7.345248], [112.768084, -7.345], [112.7681, -7.344872], [112.768148, -7.344506], [112.76818, -7.34401], [112.768056, -7.343321], [112.768051, -7.343142], [112.768048, -7.343034], [112.768035, -7.342584], [112.768011, -7.342008], [112.767983, -7.341742]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.802952, -7.346935], [112.802313, -7.346802], [112.801993, -7.346736], [112.801797, -7.346695], [112.801207, -7.346652], [112.80095, -7.346651], [112.800129, -7.346704], [112.799449, -7.346646], [112.798924, -7.34662], [112.797113, -7.346578], [112.796475, -7.346595], [112.796238, -7.346601], [112.795814, -7.346613], [112.795568, -7.346637], [112.795179, -7.346624], [112.794289, -7.346522], [112.793397, -7.346521], [112.793305, -7.346457], [112.793082, -7.346304], [112.79285, -7.346214], [112.792565, -7.346114], [112.792421, -7.346031], [112.792124, -7.345771], [112.791959, -7.345634], [112.79147, -7.345308], [112.791128, -7.34494], [112.790704, -7.344696], [112.790286, -7.344518], [112.789929, -7.344391], [112.789538, -7.344256], [112.789009, -7.344064], [112.78887, -7.344055], [112.788719, -7.344106], [112.786971, -7.344589], [112.786599, -7.344722], [112.786523, -7.344799], [112.786513, -7.34481], [112.786462, -7.344879], [112.786349, -7.345016], [112.786283, -7.34514], [112.786166, -7.34525], [112.785999, -7.345289], [112.785508, -7.345251], [112.785266, -7.345253], [112.785157, -7.345297], [112.785048, -7.345398], [112.784918, -7.345517], [112.784739, -7.345612], [112.78466, -7.345618], [112.784281, -7.345649], [112.783226, -7.345553], [112.782787, -7.345489], [112.782668, -7.345472], [112.782604, -7.345551]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.782604, -7.345551], [112.783494, -7.345761], [112.783956, -7.345873], [112.784429, -7.346021], [112.784662, -7.346088], [112.784841, -7.34614], [112.785187, -7.346224], [112.785618, -7.346324], [112.785908, -7.346385]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.728068, -7.372977], [112.726312, -7.372766], [112.72602, -7.37272], [112.725039, -7.372605], [112.724781, -7.37261], [112.724748, -7.372614], [112.724632, -7.373266], [112.724507, -7.373877], [112.724277, -7.375], [112.724247, -7.375149], [112.724179, -7.375546]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.769787, -7.353299], [112.769324, -7.353255], [112.768629, -7.353145], [112.768016, -7.35311], [112.767916, -7.353332], [112.767765, -7.353784], [112.767432, -7.35513], [112.767313, -7.355647], [112.767217, -7.35596]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.729118, -7.370452], [112.728873, -7.370489], [112.728654, -7.370848], [112.728309, -7.370743], [112.72757, -7.370585], [112.727584, -7.370413], [112.727428, -7.370382], [112.72737, -7.37046], [112.725968, -7.370212], [112.725874, -7.370437], [112.725562, -7.370476], [112.725481, -7.370301], [112.724229, -7.370269], [112.724165, -7.370473], [112.723775, -7.370384], [112.723802, -7.36994], [112.723807, -7.369884], [112.723939, -7.369312], [112.723955, -7.36924], [112.724044, -7.368841], [112.724233, -7.367953]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.77511, -7.351775], [112.77532, -7.351918], [112.775829, -7.352143], [112.776316, -7.35216], [112.777104, -7.352143], [112.777576, -7.352241], [112.777789, -7.352358], [112.778061, -7.352554], [112.778242, -7.35273], [112.778327, -7.352901], [112.778589, -7.353478], [112.779028, -7.353967], [112.779195, -7.354084], [112.779457, -7.354287], [112.779465, -7.354673]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.715706, -7.350918], [112.715859, -7.35093], [112.716747, -7.351265], [112.716921, -7.351321], [112.717071, -7.35137], [112.717607, -7.351509], [112.717891, -7.351583], [112.718209, -7.351656], [112.71873, -7.351755], [112.719321, -7.351921], [112.71947, -7.351959]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.755635, -7.33851], [112.756764, -7.338797], [112.758093, -7.339094], [112.758729, -7.339264], [112.760088, -7.33962]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.747344, -7.348357], [112.74767, -7.348298], [112.747926, -7.348252], [112.748187, -7.348211], [112.748216, -7.348206], [112.748612, -7.348273], [112.749186, -7.348341], [112.749557, -7.348347], [112.749999, -7.348357], [112.749999, -7.348357], [112.750397, -7.348366], [112.750618, -7.34843], [112.751691, -7.348772]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.753308, -7.346343], [112.752956, -7.346322], [112.752782, -7.346307], [112.751784, -7.346218], [112.751768, -7.346217], [112.750784, -7.346148], [112.749999, -7.346077], [112.749999, -7.346077], [112.748985, -7.345985], [112.747545, -7.345858], [112.747525, -7.345856]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.712265, -7.364088], [112.712215, -7.364681], [112.712225, -7.364916], [112.712266, -7.365105], [112.712604, -7.366674], [112.712625, -7.3671], [112.713189, -7.367108], [112.714078, -7.367011], [112.7141, -7.36701], [112.714114, -7.367018]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.740507, -7.363861], [112.740492, -7.363911], [112.740448, -7.364056], [112.740378, -7.364284], [112.740268, -7.364832], [112.740265, -7.36486], [112.740249, -7.365024], [112.740213, -7.365507], [112.740208, -7.365582], [112.739919, -7.367354], [112.739772, -7.368083], [112.739761, -7.368121], [112.739611, -7.368595], [112.739469, -7.368855], [112.739388, -7.36895], [112.739368, -7.368978]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.739198, -7.355697], [112.73919, -7.355814], [112.739176, -7.356033], [112.739179, -7.356119], [112.739186, -7.356215], [112.739219, -7.356314], [112.739323, -7.356416], [112.739587, -7.356534], [112.740083, -7.35664], [112.740343, -7.356677], [112.740869, -7.356593], [112.741512, -7.356566], [112.743259, -7.356862], [112.743286, -7.35687], [112.743733, -7.356958], [112.744313, -7.357009], [112.745194, -7.356971], [112.745824, -7.35691], [112.746311, -7.356866], [112.746747, -7.356912], [112.746921, -7.356931]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.740719, -7.353652], [112.740732, -7.353654], [112.740942, -7.353624], [112.741105, -7.353583], [112.741173, -7.353608], [112.741175, -7.353852], [112.741206, -7.354688], [112.741213, -7.354696], [112.741699, -7.354594], [112.741685, -7.354417], [112.741963, -7.354372], [112.742019, -7.354538], [112.742741, -7.35405], [112.742661, -7.353255], [112.745401, -7.352355], [112.745645, -7.352942]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.729535, -7.356239], [112.729982, -7.356291], [112.730369, -7.356329], [112.730656, -7.356329], [112.730922, -7.356322], [112.731473, -7.356414], [112.731821, -7.356439], [112.732138, -7.356453], [112.732873, -7.356506], [112.733694, -7.356563], [112.733924, -7.356581], [112.734104, -7.356593], [112.734296, -7.356606], [112.734457, -7.356607], [112.734946, -7.356559]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.785823, -7.346628], [112.78555, -7.346539], [112.784663, -7.346295], [112.784321, -7.346202], [112.783853, -7.346062], [112.783504, -7.345957], [112.782548, -7.345736]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.729228, -7.357746], [112.729263, -7.357704], [112.729346, -7.357496], [112.729368, -7.356553], [112.729359, -7.356218], [112.729342, -7.355588], [112.729349, -7.355374], [112.729352, -7.355265], [112.729356, -7.355166], [112.729436, -7.354747], [112.729398, -7.353606], [112.729293, -7.353196], [112.729078, -7.35303], [112.729079, -7.352786], [112.729085, -7.352568]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.732048, -7.364362], [112.732022, -7.364561], [112.731959, -7.365053], [112.73206, -7.36507], [112.732772, -7.365161], [112.732669, -7.366276], [112.732627, -7.366737], [112.732599, -7.366731], [112.7323, -7.366688], [112.731664, -7.366599], [112.73147, -7.366576], [112.73071, -7.366486], [112.730151, -7.366439], [112.729855, -7.366414], [112.72948, -7.366383]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.785857, -7.348073], [112.785987, -7.348082], [112.786472, -7.34813], [112.787865, -7.348199], [112.788221, -7.34822], [112.788493, -7.348288], [112.788598, -7.348344], [112.788774, -7.348437], [112.788982, -7.348495], [112.789419, -7.348561], [112.789865, -7.348589], [112.790243, -7.348636], [112.790699, -7.348711], [112.790674, -7.348739], [112.790489, -7.349309], [112.790427, -7.349504]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.716829, -7.363437], [112.716367, -7.363256], [112.716111, -7.363173], [112.715596, -7.363101], [112.715287, -7.36308], [112.715096, -7.363108], [112.714921, -7.363194], [112.714815, -7.363293], [112.714752, -7.363472], [112.714667, -7.363808], [112.714555, -7.364393], [112.71452, -7.364837], [112.714496, -7.365192], [112.714345, -7.365769], [112.714281, -7.366004]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.773855, -7.359861], [112.774292, -7.359996], [112.774303, -7.36], [112.774598, -7.36006], [112.775817, -7.360359], [112.776134, -7.360436], [112.776283, -7.360473], [112.776828, -7.360581], [112.77689, -7.360594], [112.777043, -7.360628], [112.777127, -7.360641], [112.777159, -7.360646]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.721962, -7.365022], [112.721978, -7.364965], [112.722053, -7.364781], [112.722508, -7.364187], [112.722758, -7.363851], [112.72284, -7.363692], [112.722945, -7.363228], [112.722978, -7.36299], [112.72302, -7.362687], [112.723023, -7.362669], [112.723048, -7.361821], [112.72306, -7.361347], [112.723087, -7.361231], [112.723665, -7.361167], [112.724147, -7.361125], [112.724503, -7.361087], [112.725342, -7.361221], [112.726441, -7.361246], [112.726597, -7.361253], [112.726688, -7.361313]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.741136, -7.34992], [112.741212, -7.350074], [112.741226, -7.350096], [112.741229, -7.350103], [112.741258, -7.350187], [112.741299, -7.350307], [112.741327, -7.350386], [112.741283, -7.350416], [112.741241, -7.35044], [112.741098, -7.350534], [112.741003, -7.35059], [112.740972, -7.351124], [112.740956, -7.351407], [112.740963, -7.353196], [112.740962, -7.35343], [112.740937, -7.353502], [112.740804, -7.35358], [112.740722, -7.353608], [112.740719, -7.353652]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.70826, -7.355822], [112.708454, -7.355203], [112.708677, -7.354735], [112.708747, -7.354567], [112.70876, -7.354354], [112.708598, -7.353844], [112.708503, -7.353315], [112.708495, -7.353064], [112.708502, -7.352993], [112.708522, -7.352778], [112.708535, -7.35265], [112.708592, -7.35095], [112.708588, -7.350831], [112.708584, -7.350732], [112.708552, -7.350355]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.767365, -7.361943], [112.767568, -7.361929], [112.767583, -7.361864], [112.767687, -7.361348], [112.768332, -7.361391], [112.769017, -7.361436], [112.769544, -7.361476], [112.769595, -7.36148], [112.769617, -7.361393], [112.769628, -7.361101], [112.769626, -7.361075], [112.769602, -7.360808], [112.769348, -7.360797], [112.768254, -7.360623], [112.768221, -7.360561], [112.76809, -7.36054], [112.767602, -7.36048], [112.767339, -7.360448], [112.767364, -7.360313], [112.767375, -7.359929], [112.767237, -7.359895], [112.767005, -7.359814], [112.765332, -7.359138], [112.764991, -7.359009], [112.76488, -7.358967], [112.764516, -7.358872]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.775568, -7.348421], [112.775495, -7.348405], [112.774687, -7.348266], [112.774606, -7.348251], [112.774148, -7.348167], [112.773998, -7.348117], [112.773852, -7.348069], [112.773726, -7.348057], [112.773494, -7.34807], [112.773023, -7.34813], [112.772787, -7.348137], [112.772454, -7.348105], [112.772159, -7.3481], [112.77193, -7.34814], [112.771906, -7.348199], [112.771862, -7.348606], [112.77181, -7.349222], [112.771702, -7.349911], [112.771634, -7.350418], [112.771621, -7.350512]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.725045, -7.371171], [112.72432, -7.371088], [112.723878, -7.370983], [112.722635, -7.370677], [112.721078, -7.370374], [112.720527, -7.37027], [112.72007, -7.370258], [112.719586, -7.370307], [112.719216, -7.370331], [112.719068, -7.37031]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.733675, -7.354934], [112.733721, -7.35475], [112.733744, -7.354584], [112.73378, -7.354282], [112.733847, -7.353839], [112.733823, -7.352125], [112.733843, -7.351712], [112.733882, -7.351115], [112.733893, -7.351088]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.738269, -7.355751], [112.738279, -7.355878], [112.738296, -7.356072], [112.738296, -7.356202], [112.738312, -7.356468], [112.738345, -7.356941], [112.738375, -7.358606], [112.738354, -7.358703], [112.738293, -7.358718], [112.738019, -7.358757], [112.737753, -7.358777], [112.736788, -7.35875], [112.736223, -7.358665], [112.735731, -7.358561]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.723505, -7.347641], [112.723399, -7.34763], [112.722992, -7.347551], [112.722483, -7.347478], [112.72119, -7.347411], [112.721003, -7.347429], [112.720946, -7.347566], [112.720783, -7.348087], [112.720585, -7.348746], [112.720454, -7.349119], [112.720251, -7.349499], [112.720028, -7.34995], [112.719678, -7.350632], [112.719528, -7.350991], [112.719489, -7.351074]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.754722, -7.342508], [112.754685, -7.342674], [112.754565, -7.343273], [112.754613, -7.343366], [112.754707, -7.343427], [112.754888, -7.34348], [112.755593, -7.343594], [112.755907, -7.343676], [112.756279, -7.343761], [112.757065, -7.343893], [112.757479, -7.343965], [112.757753, -7.344057], [112.757974, -7.344198], [112.75799, -7.344238]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.720256, -7.356614], [112.720243, -7.356642], [112.720132, -7.356968], [112.720065, -7.357183], [112.72003, -7.357295], [112.719986, -7.357413], [112.719918, -7.357596], [112.719892, -7.357664], [112.719866, -7.357743], [112.719806, -7.357906], [112.719635, -7.358256], [112.719454, -7.358495], [112.719189, -7.358754], [112.718813, -7.359027], [112.7185, -7.35929], [112.718316, -7.359431]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.789889, -7.349383], [112.789714, -7.349328], [112.78942, -7.349261], [112.789037, -7.349172], [112.788447, -7.34898], [112.788206, -7.348912], [112.787628, -7.348727], [112.786989, -7.348563], [112.78581, -7.348238]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.76344, -7.368923], [112.763117, -7.368886], [112.762786, -7.368825], [112.762227, -7.368722], [112.761886, -7.368656], [112.761434, -7.368557], [112.760986, -7.368437], [112.759993, -7.368158], [112.759352, -7.367988], [112.759262, -7.36797]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.757241, -7.350457], [112.757281, -7.349729], [112.757395, -7.348637], [112.757472, -7.348111], [112.757579, -7.347396], [112.757738, -7.3461], [112.757818, -7.345499], [112.757834, -7.345258], [112.757866, -7.345106], [112.757893, -7.34498], [112.757969, -7.344497], [112.75799, -7.344238]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.764956, -7.342107], [112.764918, -7.341439], [112.765045, -7.340316], [112.765403, -7.339297], [112.765802, -7.338652], [112.765885, -7.338577], [112.766474, -7.338395], [112.766519, -7.338377], [112.766524, -7.338376]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.711118, -7.356536], [112.711219, -7.356535], [112.712545, -7.356539], [112.713199, -7.35665], [112.713511, -7.356727], [112.713898, -7.356789], [112.71451, -7.356875], [112.714943, -7.356919], [112.715789, -7.356993], [112.715803, -7.356994], [112.715958, -7.357131], [112.716119, -7.357247], [112.716128, -7.357248]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.72, -7.363169], [112.720087, -7.363151], [112.720459, -7.363154], [112.720657, -7.363163], [112.720754, -7.363057], [112.720915, -7.362701], [112.721074, -7.362318], [112.721245, -7.36193], [112.72125, -7.36192], [112.721196, -7.361838], [112.721089, -7.361671], [112.72106, -7.361642], [112.721033, -7.361617], [112.72084, -7.361469], [112.720697, -7.361393], [112.720697, -7.361351], [112.720691, -7.361261], [112.720629, -7.361191], [112.720381, -7.361023], [112.719811, -7.360604]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.74443, -7.341981], [112.744397, -7.341974], [112.744139, -7.34197], [112.744098, -7.341974], [112.743845, -7.342001], [112.743819, -7.342092], [112.743712, -7.342795], [112.743597, -7.34397], [112.743497, -7.344972], [112.743358, -7.346246], [112.743302, -7.347225], [112.743289, -7.347452], [112.743249, -7.347853], [112.743191, -7.348014], [112.743, -7.348456], [112.742995, -7.348529], [112.742982, -7.348694], [112.74294, -7.349212], [112.74294, -7.349373]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.777581, -7.359429], [112.778028, -7.359733], [112.7784, -7.359941], [112.778842, -7.360201], [112.779772, -7.360661], [112.780334, -7.360976], [112.78035, -7.360981], [112.780798, -7.361134], [112.78105, -7.361224], [112.781153, -7.361284], [112.781264, -7.361466], [112.781304, -7.361532], [112.781655, -7.362039], [112.781881, -7.362375], [112.782263, -7.362956], [112.782368, -7.363129], [112.782425, -7.363306], [112.782457, -7.363621], [112.78244, -7.363755], [112.782371, -7.363873], [112.782213, -7.363989], [112.78213, -7.364041], [112.782073, -7.364252], [112.781618, -7.364288], [112.781528, -7.364297], [112.781493, -7.364359], [112.781488, -7.365085], [112.781485, -7.365474], [112.781485, -7.365504]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.731808, -7.371287], [112.731844, -7.371237], [112.732127, -7.371042], [112.73254, -7.370934], [112.73292, -7.370923], [112.73343, -7.370949], [112.73365, -7.37094], [112.733656, -7.370787], [112.733706, -7.370108], [112.733789, -7.369741], [112.733882, -7.369741], [112.734101, -7.369796], [112.734574, -7.369915], [112.73505, -7.369973], [112.735081, -7.369973], [112.735458, -7.369974], [112.735698, -7.369985], [112.736035, -7.370001], [112.736218, -7.370061], [112.736521, -7.37021], [112.736629, -7.370242]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.774513, -7.371824], [112.774518, -7.371799], [112.774545, -7.371697], [112.774727, -7.370812], [112.774797, -7.37047], [112.774908, -7.369933], [112.775039, -7.369245], [112.775259, -7.368168], [112.77531, -7.367963], [112.775377, -7.367649], [112.775381, -7.367629], [112.775452, -7.367318], [112.775518, -7.367102], [112.775529, -7.367065], [112.775553, -7.36696], [112.775652, -7.36654], [112.775676, -7.366349], [112.775884, -7.365396], [112.77595, -7.365107], [112.776085, -7.364517], [112.77613, -7.364326], [112.776163, -7.364188], [112.776248, -7.363835]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.807773, -7.367545], [112.80776, -7.367984], [112.807762, -7.368071], [112.807762, -7.368105], [112.807763, -7.368145], [112.807768, -7.368392], [112.807825, -7.36887], [112.807853, -7.369299], [112.8079, -7.37007], [112.807988, -7.370667], [112.808036, -7.371152], [112.808037, -7.371283], [112.808037, -7.37145], [112.808042, -7.372767], [112.808047, -7.373249], [112.808044, -7.373386], [112.808011, -7.373468], [112.807985, -7.375], [112.807981, -7.375243], [112.807979, -7.377022], [112.807972, -7.37849], [112.80797, -7.378822], [112.807961, -7.379471], [112.807945, -7.380618], [112.807924, -7.382415], [112.807898, -7.383253], [112.807869, -7.383917], [112.807878, -7.384506], [112.807883, -7.384763], [112.807902, -7.385687], [112.807899, -7.38576], [112.807885, -7.386067]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.750928, -7.366262], [112.750889, -7.36641], [112.750851, -7.366728], [112.750848, -7.366762], [112.750829, -7.366979], [112.750673, -7.367856], [112.7506, -7.368211], [112.750542, -7.368594], [112.750517, -7.368708], [112.750467, -7.36903], [112.750397, -7.369444], [112.750271, -7.370073], [112.750222, -7.370283], [112.750126, -7.370543], [112.750073, -7.370806], [112.75, -7.371162], [112.75, -7.371162], [112.75, -7.371162], [112.749944, -7.371435], [112.749896, -7.371669]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.7339, -7.360374], [112.733602, -7.360327], [112.733391, -7.360413], [112.73331, -7.360447], [112.733059, -7.360369], [112.732412, -7.360362], [112.732129, -7.360347], [112.731816, -7.360288], [112.73162, -7.360228], [112.73151, -7.360143], [112.731032, -7.359778], [112.731004, -7.359747], [112.730915, -7.359648], [112.730782, -7.359306]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.757996, -7.36287], [112.758146, -7.362907], [112.758565, -7.362958], [112.759112, -7.363033], [112.760068, -7.363249], [112.760357, -7.363266], [112.760466, -7.363265], [112.76094, -7.363288], [112.761853, -7.363398], [112.763142, -7.363522], [112.764062, -7.363606]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.775634, -7.352867], [112.775492, -7.353233], [112.775364, -7.353654], [112.77528, -7.354136], [112.775194, -7.354483], [112.775021, -7.355092], [112.774783, -7.356184]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.805819, -7.347303], [112.805805, -7.347608], [112.805807, -7.34843], [112.805807, -7.34848], [112.805834, -7.349425], [112.805905, -7.350782], [112.805923, -7.350942], [112.806069, -7.352253], [112.806123, -7.352654], [112.806182, -7.353223], [112.806251, -7.353923], [112.806413, -7.355013], [112.806515, -7.3557], [112.806608, -7.35607], [112.806711, -7.356532], [112.806919, -7.35783], [112.807098, -7.358696], [112.807098, -7.358697], [112.807092, -7.35873], [112.807098, -7.359197], [112.807112, -7.360157], [112.807054, -7.360618], [112.807052, -7.360774], [112.807116, -7.360871], [112.807157, -7.360926], [112.807217, -7.360967], [112.807265, -7.361001], [112.807339, -7.361051], [112.807321, -7.361326], [112.807261, -7.361718], [112.807207, -7.361927], [112.807205, -7.362194], [112.807249, -7.362283], [112.807348, -7.362358], [112.807487, -7.362403], [112.807677, -7.362447], [112.807695, -7.362463], [112.807762, -7.362541], [112.807787, -7.36257], [112.807807, -7.362594], [112.807821, -7.36261], [112.80786, -7.36268], [112.808022, -7.363088], [112.808268, -7.363463], [112.808391, -7.363534], [112.808441, -7.363591], [112.808544, -7.363776], [112.808554, -7.363874], [112.808506, -7.364074], [112.808398, -7.364355], [112.808208, -7.36463], [112.808004, -7.364787], [112.807812, -7.364979], [112.807805, -7.364986], [112.807727, -7.365113], [112.807712, -7.365137], [112.807676, -7.365417], [112.807678, -7.365487], [112.807689, -7.365804], [112.80769, -7.365847], [112.807705, -7.366065]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.762585, -7.340186], [112.762419, -7.341012], [112.762383, -7.341121], [112.762363, -7.341188], [112.762342, -7.341262], [112.762315, -7.341346], [112.762234, -7.341598], [112.762188, -7.341851], [112.762145, -7.34194], [112.762071, -7.341954], [112.761879, -7.341936], [112.761443, -7.34184], [112.760451, -7.341608], [112.759974, -7.341484], [112.759538, -7.341378], [112.759114, -7.341247], [112.758752, -7.341137], [112.757864, -7.340927], [112.756418, -7.340625], [112.756123, -7.340557], [112.755701, -7.340454], [112.755211, -7.34033]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.775568, -7.348421], [112.775637, -7.348123], [112.775668, -7.348017], [112.775693, -7.347933], [112.775758, -7.347836], [112.775888, -7.347758], [112.777308, -7.347671], [112.777831, -7.347606], [112.779192, -7.347521], [112.779784, -7.347561], [112.780142, -7.347554]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.750001, -7.363454], [112.750991, -7.363586], [112.751274, -7.363645], [112.752365, -7.363777], [112.753315, -7.363939], [112.754213, -7.364068], [112.75442, -7.3641], [112.755032, -7.364195]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.728401, -7.371926], [112.728359, -7.371902], [112.72805, -7.371759], [112.727518, -7.371552], [112.727147, -7.371395], [112.726821, -7.371335], [112.726401, -7.371315], [112.725724, -7.371245], [112.725047, -7.371171], [112.725045, -7.371171]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.755655, -7.351843], [112.755668, -7.351848], [112.75607, -7.351884], [112.757206, -7.351766], [112.757486, -7.351693], [112.757549, -7.351667], [112.757651, -7.351625], [112.757749, -7.351586], [112.757959, -7.3515], [112.758099, -7.351439], [112.758353, -7.351328], [112.758922, -7.351097], [112.759456, -7.35082], [112.760003, -7.350502]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.722634, -7.352966], [112.722616, -7.352959], [112.721487, -7.352583], [112.721458, -7.352565], [112.721066, -7.352439], [112.720531, -7.352286], [112.720336, -7.352206], [112.720075, -7.352112], [112.71947, -7.351959]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.725045, -7.371171], [112.724997, -7.37142], [112.724914, -7.371729], [112.724768, -7.371722], [112.724552, -7.37167], [112.724187, -7.371625], [112.723408, -7.371482], [112.722297, -7.371287], [112.720964, -7.371019], [112.71937, -7.370828], [112.718977, -7.370748]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.746709, -7.35773], [112.746638, -7.358016], [112.746626, -7.358256], [112.746659, -7.358509], [112.746725, -7.358578], [112.746915, -7.358655], [112.747112, -7.3587], [112.747317, -7.358697], [112.747339, -7.358695], [112.747653, -7.358666], [112.748027, -7.358562], [112.748328, -7.358506], [112.748605, -7.358424], [112.748781, -7.358368], [112.749192, -7.358239], [112.749796, -7.358157], [112.749999, -7.35813], [112.75, -7.35813], [112.750015, -7.358128], [112.750336, -7.358105], [112.750699, -7.358119], [112.751058, -7.358208], [112.751719, -7.358357], [112.752101, -7.35843], [112.752272, -7.358482]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.746709, -7.35773], [112.74687, -7.357822], [112.747245, -7.357959], [112.747419, -7.358005], [112.747451, -7.358002], [112.747669, -7.357951], [112.748071, -7.357766], [112.74832, -7.357646], [112.748894, -7.357484], [112.749217, -7.357482], [112.749254, -7.35748], [112.749693, -7.35745], [112.749999, -7.357409], [112.75, -7.357408], [112.750339, -7.357362], [112.751028, -7.357382], [112.751512, -7.357425], [112.752544, -7.357428], [112.752664, -7.357453], [112.752605, -7.357618], [112.752344, -7.358189], [112.752272, -7.358482]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.770952, -7.352157], [112.770698, -7.352107], [112.770162, -7.352088], [112.769836, -7.352076], [112.769556, -7.352032], [112.769086, -7.351907], [112.7684, -7.351804], [112.76815, -7.351764], [112.767259, -7.351621]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.759068, -7.367933], [112.759034, -7.367927], [112.758658, -7.36786], [112.757642, -7.367728], [112.756043, -7.367549], [112.75532, -7.367439], [112.75489, -7.367357], [112.754133, -7.367183], [112.753853, -7.367079], [112.753665, -7.366956], [112.753547, -7.366877], [112.753262, -7.366742], [112.752919, -7.366617], [112.752203, -7.366463], [112.751016, -7.366288], [112.750928, -7.366262]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.76281, -7.339251], [112.763048, -7.339252], [112.76324, -7.339255], [112.763382, -7.339262], [112.763486, -7.33925], [112.763596, -7.339237], [112.763608, -7.339233], [112.763659, -7.339146], [112.763724, -7.33905], [112.763797, -7.339012], [112.763902, -7.339007], [112.764056, -7.33909], [112.764103, -7.339109], [112.764233, -7.339133], [112.764315, -7.339177], [112.764293, -7.339371], [112.764234, -7.339556], [112.764229, -7.339572], [112.764114, -7.339842], [112.764083, -7.33999], [112.764124, -7.340209], [112.764167, -7.340373], [112.764181, -7.340528], [112.764201, -7.340567], [112.764309, -7.340776], [112.764366, -7.340893], [112.764329, -7.341069], [112.764253, -7.34123], [112.764211, -7.341321], [112.763991, -7.341586], [112.763917, -7.341688], [112.763866, -7.34194], [112.763902, -7.341962], [112.763941, -7.341986], [112.764085, -7.342003], [112.764956, -7.342107]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.719982, -7.364438], [112.719916, -7.364425], [112.719347, -7.364271], [112.719107, -7.364206], [112.718821, -7.364099], [112.718641, -7.364033], [112.718431, -7.363971], [112.717489, -7.363696], [112.716829, -7.363437]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.763459, -7.348637], [112.764233, -7.348783], [112.764452, -7.348811], [112.764611, -7.348751], [112.764762, -7.348711], [112.765013, -7.34871], [112.765391, -7.348755], [112.765987, -7.348848], [112.766387, -7.348894], [112.766387, -7.348978], [112.766324, -7.349583], [112.766281, -7.349887], [112.766271, -7.349968], [112.76626, -7.350049]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.707727, -7.35019], [112.707704, -7.350286], [112.707642, -7.3506], [112.707612, -7.350702], [112.707575, -7.350822], [112.707412, -7.3514], [112.707057, -7.351332], [112.705524, -7.351025], [112.704711, -7.350882], [112.704414, -7.350838]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.771386, -7.357422], [112.771025, -7.357309], [112.770631, -7.357141], [112.770151, -7.356943], [112.768468, -7.356358], [112.767837, -7.35613], [112.767281, -7.355981], [112.767217, -7.35596]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.747835, -7.352415], [112.747834, -7.352507], [112.747832, -7.352713], [112.747829, -7.353573], [112.747763, -7.354442], [112.747647, -7.354817], [112.747299, -7.355941], [112.746989, -7.356692], [112.746987, -7.3567], [112.746921, -7.356931]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.73078, -7.358834], [112.730172, -7.358803], [112.729543, -7.35883], [112.729545, -7.358879], [112.729545, -7.358916], [112.729537, -7.360722], [112.729559, -7.36156]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.746337, -7.362931], [112.745929, -7.362885], [112.743287, -7.362607], [112.740861, -7.362353], [112.738789, -7.362039], [112.738754, -7.362065], [112.738739, -7.362076], [112.738709, -7.362284]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.729047, -7.354963], [112.727528, -7.354775], [112.726939, -7.354678], [112.726419, -7.354542], [112.72616, -7.35443], [112.725563, -7.354117], [112.725268, -7.353954], [112.72481, -7.353737], [112.72456, -7.353601], [112.724555, -7.353599]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.740507, -7.363861], [112.74065, -7.363939], [112.740918, -7.364133], [112.741209, -7.364384], [112.741367, -7.364434], [112.741559, -7.364446], [112.74176, -7.364375], [112.741939, -7.364338], [112.741978, -7.364352], [112.742069, -7.364384], [112.74223, -7.364447], [112.74249, -7.36455], [112.742782, -7.364659], [112.743165, -7.364708], [112.743428, -7.364681], [112.743591, -7.364678], [112.743823, -7.364725], [112.743883, -7.364784], [112.743978, -7.364797], [112.744287, -7.364856], [112.744473, -7.364892], [112.744911, -7.364886], [112.745072, -7.364884], [112.745189, -7.364882], [112.74532, -7.364893], [112.745528, -7.364991], [112.745609, -7.365117], [112.74565, -7.365181], [112.745721, -7.365281], [112.746831, -7.365482], [112.747308, -7.365556], [112.747891, -7.365577], [112.748472, -7.365691], [112.748795, -7.365809], [112.749002, -7.365879], [112.749378, -7.365902], [112.749728, -7.365902], [112.75, -7.365983], [112.75, -7.365983], [112.750162, -7.366032], [112.750423, -7.36611], [112.750676, -7.366193], [112.750928, -7.366262]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.767543, -7.350311], [112.767781, -7.350385], [112.76868, -7.350742], [112.768869, -7.350792], [112.769217, -7.350807], [112.769673, -7.350843], [112.769765, -7.35085], [112.770686, -7.350891], [112.770842, -7.350855], [112.771589, -7.350517], [112.771621, -7.350512], [112.77182, -7.350481], [112.772301, -7.350484], [112.772681, -7.350532], [112.772889, -7.350597], [112.77325, -7.350777], [112.773437, -7.350925], [112.773683, -7.351113], [112.773973, -7.351255], [112.774761, -7.351577], [112.775027, -7.351719], [112.77511, -7.351775]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.75799, -7.344238], [112.758068, -7.344229], [112.758775, -7.344323], [112.759209, -7.344407], [112.759435, -7.344472], [112.759507, -7.344493], [112.759775, -7.344572], [112.761, -7.344816], [112.761529, -7.344922], [112.761654, -7.344949]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.772351, -7.36219], [112.772374, -7.361857], [112.772222, -7.361762], [112.772115, -7.361695], [112.772085, -7.361663], [112.772303, -7.361253], [112.772319, -7.361224], [112.772844, -7.359853], [112.773413, -7.358145], [112.773441, -7.358059]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.720256, -7.356614], [112.720312, -7.356488], [112.720645, -7.355749], [112.720801, -7.355376], [112.72105, -7.354617], [112.721227, -7.354063], [112.721286, -7.353871], [112.721331, -7.353721], [112.721363, -7.353626], [112.721415, -7.353504], [112.721475, -7.353335]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.719489, -7.351074], [112.719475, -7.351021], [112.719228, -7.350896], [112.718338, -7.350498], [112.717947, -7.350316], [112.717586, -7.350154], [112.716212, -7.349642], [112.716189, -7.349637], [112.716079, -7.349612], [112.715995, -7.349632], [112.715994, -7.349634], [112.715925, -7.349697], [112.715866, -7.349846], [112.715842, -7.349906], [112.715799, -7.350002], [112.715764, -7.35017], [112.71573, -7.350334], [112.715724, -7.350408], [112.715706, -7.350918]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.745645, -7.352942], [112.745506, -7.353019], [112.745046, -7.353184], [112.744887, -7.353236], [112.744858, -7.353244], [112.743423, -7.353943], [112.742542, -7.35471], [112.742164, -7.354914], [112.741283, -7.355296], [112.740813, -7.355394], [112.740652, -7.355418]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.758156, -7.361609], [112.758538, -7.36166], [112.759046, -7.361791], [112.759401, -7.36196], [112.759649, -7.362065], [112.760079, -7.362189], [112.760155, -7.362211], [112.760478, -7.362253], [112.76093, -7.362275], [112.76166, -7.362293], [112.762328, -7.362375], [112.762333, -7.362375], [112.762386, -7.362383], [112.763021, -7.362474], [112.763874, -7.36255], [112.764195, -7.362572]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.752204, -7.350843], [112.753492, -7.351063], [112.753645, -7.351129], [112.754037, -7.351296], [112.754329, -7.351421], [112.755346, -7.351746], [112.755655, -7.351843]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.760003, -7.350502], [112.760225, -7.350378], [112.760434, -7.350314], [112.760612, -7.350299], [112.760805, -7.350355], [112.760957, -7.350418], [112.761137, -7.350433], [112.761683, -7.35032], [112.762155, -7.350186], [112.762357, -7.350135], [112.763316, -7.350346], [112.763658, -7.350424], [112.763967, -7.350469], [112.764235, -7.350573], [112.764261, -7.350589], [112.764314, -7.350601], [112.76478, -7.350754], [112.765217, -7.350874], [112.765594, -7.35095], [112.765955, -7.35108], [112.766211, -7.351201], [112.766543, -7.351358], [112.766826, -7.351504]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.733123, -7.351086], [112.73304, -7.351623], [112.732971, -7.35203], [112.732927, -7.352351], [112.732814, -7.353675], [112.732772, -7.35434], [112.732723, -7.355006]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.707169, -7.35805], [112.706843, -7.358025], [112.706476, -7.357983], [112.706244, -7.357941], [112.706119, -7.357845], [112.706044, -7.357783], [112.705799, -7.357688], [112.705241, -7.357638], [112.704764, -7.357625], [112.704117, -7.357619], [112.703847, -7.357678], [112.703552, -7.357809], [112.703387, -7.357906], [112.703342, -7.357922]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.782098, -7.347597], [112.782255, -7.347679], [112.783271, -7.347774], [112.784106, -7.347832], [112.784485, -7.347864], [112.784655, -7.347888], [112.784669, -7.347896], [112.784797, -7.347967], [112.784945, -7.348028], [112.785669, -7.348084]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.718313, -7.352477], [112.718277, -7.352985], [112.718254, -7.353239], [112.718229, -7.353424], [112.718209, -7.353575], [112.718196, -7.35375], [112.718114, -7.355111], [112.718068, -7.35546], [112.717953, -7.355973], [112.717777, -7.356571], [112.717656, -7.357077], [112.717623, -7.357328]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.73855, -7.361662], [112.738625, -7.361725], [112.738665, -7.361742], [112.738712, -7.361761], [112.742013, -7.362109], [112.746, -7.362597], [112.746432, -7.362667]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.773855, -7.359861], [112.773757, -7.360137], [112.773439, -7.361485], [112.773371, -7.361805], [112.773367, -7.361817], [112.773334, -7.361933], [112.773246, -7.36233], [112.775274, -7.363334], [112.775766, -7.363281], [112.775865, -7.362497], [112.776165, -7.362463], [112.77624, -7.36209], [112.776658, -7.362148], [112.776705, -7.362154]]}, {"nama": "Jalan Lokal", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.723843, -7.354109], [112.723767, -7.354322], [112.723689, -7.35457], [112.723632, -7.35472], [112.723559, -7.354913], [112.723522, -7.355013], [112.723449, -7.355233], [112.723115, -7.35635], [112.722973, -7.356698], [112.722811, -7.357122], [112.722746, -7.357348], [112.7227, -7.357377], [112.722605, -7.357359], [112.722555, -7.357308], [112.722397, -7.357163], [112.722172, -7.356902], [112.722106, -7.356779], [112.722487, -7.355392], [112.722572, -7.355081], [112.722603, -7.354948], [112.722697, -7.354637], [112.722742, -7.354434], [112.722775, -7.354289], [112.722806, -7.354189], [112.722827, -7.354099], [112.722854, -7.354006], [112.72292, -7.35385], [112.722959, -7.353807]]}, {"nama": "Jalan Lain", "jenis": "lokal", "warna": "#cbd5e1", "lebar": 1.5, "coords": [[112.7149, -7.36235], [112.714634, -7.362454], [112.714378, -7.362556], [112.714374, -7.362558], [112.713906, -7.362812], [112.713206, -7.363249], [112.712921, -7.363386], [112.712513, -7.36362], [112.712475, -7.363636], [112.712457, -7.363644], [112.711347, -7.364395], [112.711334, -7.364404], [112.710943, -7.364667], [112.710927, -7.364679], [112.710155, -7.365143], [112.710044, -7.365201], [112.709697, -7.365381], [112.709201, -7.365654], [112.70888, -7.365813], [112.708766, -7.36591], [112.708778, -7.365943], [112.708825, -7.366383], [112.708942, -7.367156], [112.708994, -7.367669], [112.709072, -7.368254]]}];
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+const KELAS_COLOR = {
+  "Sangat Tinggi":"#7f1d1d",
+  "Tinggi":"#ef4444",
+  "Sedang":"#f97316",
+  "Rendah":"#3b82f6",
+  "Sangat Rendah":"#1e3a8a"
+};
+const KELAS_BG = {
+  "Sangat Tinggi":"#fef2f2",
+  "Tinggi":"#fff1f2",
+  "Sedang":"#fff7ed",
+  "Rendah":"#eff6ff",
+  "Sangat Rendah":"#eff6ff"
+};
+
+function fmt(n){ return 'Rp '+new Intl.NumberFormat('id-ID').format(n)+'/m²'; }
+function fmtM(n){ return 'Rp '+(n/1000000).toFixed(1)+' Jt'; }
+
+// ══════════════════════════════════════════════
+// MAP INIT
+// ══════════════════════════════════════════════
+const map = L.map('map',{center:[-7.3532,112.7671],zoom:13,zoomControl:false});
+L.control.zoom({position:'topright'}).addTo(map);
+
+const TILES = {
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OSM · Esri · CartoDB',maxZoom:19}),
+  osm:   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© ESRI',maxZoom:19})
+};
+TILES.light.addTo(map);
+
+// coord display
+map.on('mousemove', e => {
+  document.getElementById('coord-text').textContent =
+    e.latlng.lat.toFixed(6)+'°N  '+e.latlng.lng.toFixed(6)+'°E';
+});
+
+// ══════════════════════════════════════════════
+// CHOROPLETH
+// ══════════════════════════════════════════════
+let choroplethGrp = L.layerGroup().addTo(map);
+let batasGrp      = L.layerGroup().addTo(map);
+let currentOpacity = 0.7;
+
+function buildChoropleth(filterKelas='', filterKel=''){
+  choroplethGrp.clearLayers();
+  batasGrp.clearLayers();
+  ZONA.forEach(z=>{
+    if(filterKelas && z.kelas!==filterKelas) return;
+    if(filterKel   && z.kelurahan!==filterKel) return;
+    const color = KELAS_COLOR[z.kelas];
+    const poly = L.polygon(z.coords,{
+      color:'#fff', weight:1.5, opacity:.8,
+      fillColor:color, fillOpacity:currentOpacity
+    });
+    // batas (outline only)
+    const batas = L.polygon(z.coords,{
+      color:'#334155', weight:1.5, fill:false, opacity:.5, dashArray:'4 3'
+    });
+
+    const badge = `<span style="background:${KELAS_BG[z.kelas]};color:${color};padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;display:inline-block;margin-bottom:8px;">${z.kelas}</span>`;
+    poly.bindPopup(`
+      <div class="popup-box">
+        <div class="popup-head">📍 ${z.kelurahan}</div>
+        ${badge}
+        <div class="popup-grid">
+          <div class="popup-kv"><span class="popup-k">Nilai Rata-rata</span><span class="popup-v" style="color:${color}">${fmtM(z.nilai_rata)}</span></div>
+          <div class="popup-kv"><span class="popup-k">Median</span><span class="popup-v">${fmtM(z.nilai_median)}</span></div>
+          <div class="popup-kv"><span class="popup-k">Nilai Min</span><span class="popup-v">${fmtM(z.nilai_min)}</span></div>
+          <div class="popup-kv"><span class="popup-k">Nilai Max</span><span class="popup-v">${fmtM(z.nilai_max)}</span></div>
+          <div class="popup-kv"><span class="popup-k">Sampel</span><span class="popup-v">${z.sampel} titik</span></div>
+          <div class="popup-kv"><span class="popup-k">COD</span><span class="popup-v">${z.cod}%</span></div>
+        </div>
+        <hr class="popup-divider">
+        <div class="popup-note">Faktor dominan: <b>${z.faktor}</b></div>
+      </div>`);
+    choroplethGrp.addLayer(poly);
+    batasGrp.addLayer(batas);
+  });
+}
+
+// ══════════════════════════════════════════════
+// HEATMAP
+// ══════════════════════════════════════════════
+let heatLayer = null;
+let kdeR = 25;
+
+function buildHeat(){
+  if(heatLayer) map.removeLayer(heatLayer);
+  const pts = SAMPEL.map(s=>[s.lat,s.lng,s.harga/8100000]);
+  heatLayer = L.heatLayer(pts,{radius:kdeR,blur:15,maxZoom:17,
+    gradient:{0:'#1e3a8a',0.25:'#3b82f6',0.5:'#f97316',0.75:'#ef4444',1:'#7f1d1d'}});
+  if(document.getElementById('chk-heatmap').checked) heatLayer.addTo(map);
+}
+
+// ══════════════════════════════════════════════
+// BUBBLE
+// ══════════════════════════════════════════════
+let bubbleGrp = L.layerGroup();
+
+function buildBubble(filterKelas=''){
+  bubbleGrp.clearLayers();
+  SAMPEL.forEach(s=>{
+    if(filterKelas && s.kelas!==filterKelas) return;
+    const color = KELAS_COLOR[s.kelas];
+    const r = 6+(s.harga/8100000)*16;
+    const c = L.circleMarker([s.lat,s.lng],{
+      radius:r, color:'#fff', weight:1.5, fillColor:color, fillOpacity:.75
+    });
+    c.bindPopup(`
+      <div class="popup-box">
+        <div class="popup-head">📌 ${s.nama}</div>
+        <span style="background:${KELAS_BG[s.kelas]};color:${color};padding:2px 9px;border-radius:99px;font-size:10px;font-weight:700;display:inline-block;margin-bottom:8px;">${s.kelas}</span>
+        <div class="popup-grid">
+          <div class="popup-kv"><span class="popup-k">Harga/m²</span><span class="popup-v" style="color:${color}">${fmtM(s.harga)}</span></div>
+          <div class="popup-kv"><span class="popup-k">Jarak CBD</span><span class="popup-v">${s.cbd} km</span></div>
+          <div class="popup-kv"><span class="popup-k">Lat</span><span class="popup-v">${s.lat.toFixed(4)}</span></div>
+          <div class="popup-kv"><span class="popup-k">Lng</span><span class="popup-v">${s.lng.toFixed(4)}</span></div>
+        </div>
+      </div>`);
+    bubbleGrp.addLayer(c);
+  });
+  if(document.getElementById('chk-bubble').checked) bubbleGrp.addTo(map);
+}
+
+// ══════════════════════════════════════════════
+// FASILITAS
+// ══════════════════════════════════════════════
+let fasGrp = L.layerGroup();
+let bufferRadius = 500;
+let bufferCircle = null;
+
+function buildFas(){
+  fasGrp.clearLayers();
+  const active = [...document.querySelectorAll('.fas-chk:checked')].map(el=>el.dataset.cat);
+  FASILITAS.forEach(f=>{
+    if(!active.includes(f.kat)) return;
+    const icon = L.divIcon({
+      html:`<div style="font-size:20px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));line-height:1;">${f.icon}</div>`,
+      iconSize:[24,24],iconAnchor:[12,12],className:''
+    });
+    const m = L.marker([f.lat,f.lng],{icon});
+    m.on('click',()=>{
+      if(bufferCircle) map.removeLayer(bufferCircle);
+      bufferCircle = L.circle([f.lat,f.lng],{
+        radius:bufferRadius, color:'#2563eb', fillColor:'#2563eb',
+        fillOpacity:.08, weight:1.5, dashArray:'6 4'
+      }).addTo(map);
+    });
+    m.bindPopup(`
+      <div class="popup-box">
+        <div class="popup-head">${f.icon} ${f.nama}</div>
+        <div class="popup-note" style="margin-top:4px;">Kategori: <b>${f.kat}</b></div>
+        <div class="popup-note">Lat: ${f.lat.toFixed(6)} · Lng: ${f.lng.toFixed(6)}</div>
+        <div class="popup-note" style="margin-top:6px;color:var(--blue);">🔵 Klik untuk tampilkan buffer ${bufferRadius}m</div>
+      </div>`);
+    fasGrp.addLayer(m);
+  });
+}
+
+// ── JALAN ──────────────────────────────────────────────────
+let jalanGrp = L.layerGroup();
+
+function buildJalan(){
+  jalanGrp.clearLayers();
+  JALAN.forEach(j=>{
+    const line = L.polyline(j.coords.map(c=>[c[1],c[0]]),{
+      color: j.warna,
+      weight: j.lebar,
+      opacity: 0.75
+    });
+    line.bindPopup(`
+      <div class="popup-box">
+        <div class="popup-head">🛣️ ${j.nama || j.jenis}</div>
+        <div class="popup-note">Jenis: <b style="text-transform:capitalize">${j.jenis}</b></div>
+      </div>`);
+    jalanGrp.addLayer(line);
+  });
+  if(document.getElementById('chk-jalan') && document.getElementById('chk-jalan').checked){
+    jalanGrp.addTo(map);
+  }
+}
+
+// ══════════════════════════════════════════════
+// CONTROLS
+// ══════════════════════════════════════════════
+function toggleLayer(name){
+  if(name==='choropleth'){
+    document.getElementById('chk-choropleth').checked ? choroplethGrp.addTo(map) : map.removeLayer(choroplethGrp);
+  } else if(name==='batas'){
+    document.getElementById('chk-batas').checked ? batasGrp.addTo(map) : map.removeLayer(batasGrp);
+  } else if(name==='bubble'){
+    document.getElementById('chk-bubble').checked ? bubbleGrp.addTo(map) : map.removeLayer(bubbleGrp);
+  } else if(name==='heatmap'){
+    if(document.getElementById('chk-heatmap').checked){ if(heatLayer) heatLayer.addTo(map); }
+    else { if(heatLayer) map.removeLayer(heatLayer); }
+  } else if(name==='jalan'){
+    document.getElementById('chk-jalan').checked ? jalanGrp.addTo(map) : map.removeLayer(jalanGrp);
+  }
+}
+
+function setOpacity(v){
+  currentOpacity = v/100;
+  document.getElementById('val-opacity').textContent = v+'%';
+  choroplethGrp.eachLayer(l=>l.setStyle({fillOpacity:currentOpacity}));
+}
+
+function setKDE(v){
+  kdeR = parseInt(v);
+  document.getElementById('val-kde').textContent = v;
+  buildHeat();
+}
+
+function filterFas(){ buildFas(); }
+
+function setBufferRadius(v){ bufferRadius = parseInt(v); if(bufferCircle) map.removeLayer(bufferCircle); }
+
+function setBasemap(k){
+  Object.values(TILES).forEach(t=>map.removeLayer(t));
+  TILES[k].addTo(map);
+}
+
+function applyFilter(){
+  const k = document.getElementById('filter-kelas').value;
+  const kel = document.getElementById('filter-kel').value;
+  buildChoropleth(k,kel);
+  buildBubble(k);
+  if(kel){
+    const z = ZONA.find(z=>z.kelurahan===kel);
+    if(z){ const c=z.coords; map.flyTo([-7.3532,112.7671],13,{duration:1}); }
+  }
+}
+
+function searchZone(){
+  const q = document.getElementById('search-bar').value.toLowerCase().trim();
+  if(!q) return;
+  const z = ZONA.find(z=>z.kelurahan.toLowerCase().includes(q));
+  if(z){ const c=z.coords; map.flyTo([-7.3532,112.7671],13,{duration:1.2}); }
+}
+
+function resetFilter(){
+  document.getElementById('filter-kelas').value='';
+  document.getElementById('filter-kel').value='';
+  document.getElementById('search-bar').value='';
+  buildChoropleth(); buildBubble();
+  map.flyTo([-7.3532,112.7671],13,{duration:1});
+}
+
+// panel tabs
+function setTab(name, el){
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['lapisan','overlay','legenda'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display = id===name ? 'block' : 'none';
+  });
+}
+
+// ══════════════════════════════════════════════
+// VIEW SWITCHER
+// ══════════════════════════════════════════════
+function switchView(v){
+  const views = {map:'map-view', dash:'dash-view', story:'story-view', beranda:'beranda-view'};
+  Object.entries(views).forEach(([key,id])=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(key==='map'){
+      el.style.display = key===v ? 'flex' : 'none';
+    } else {
+      el.style.display = key===v ? 'block' : 'none';
+    }
+  });
+  document.querySelectorAll('.nav-link').forEach(btn=>btn.classList.remove('active'));
+  const idx = ['beranda','story','dash','map'].indexOf(v);
+  if(idx>=0) document.querySelectorAll('.nav-link')[idx].classList.add('active');
+  if(v==='map') setTimeout(()=>map.invalidateSize(),60);
+}
+
+// ══════════════════════════════════════════════
+// DASHBOARD CHARTS
+// ══════════════════════════════════════════════
+function buildBarChart(){
+  const sorted = [...ZONA].sort((a,b)=>b.nilai_rata-a.nilai_rata);
+  const max = sorted[0].nilai_rata;
+  document.getElementById('bar-chart').innerHTML = sorted.map(z=>`
+    <div class="bar-row">
+      <div class="bar-label">${z.kelurahan}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(z.nilai_rata/max*100).toFixed(1)}%;background:${KELAS_COLOR[z.kelas]}">
+          <span class="bar-text">${fmtM(z.nilai_rata)}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function buildHistogram(){
+  const bins=[
+    {label:'< 2,5 Jt',min:0,max:2500000},
+    {label:'2,5–3,5 Jt',min:2500000,max:3500000},
+    {label:'3,5–4,5 Jt',min:3500000,max:4500000},
+    {label:'4,5–5,5 Jt',min:4500000,max:5500000},
+    {label:'5,5–6,5 Jt',min:5500000,max:6500000},
+    {label:'6,5–8,5 Jt',min:6500000,max:9000000}
+  ];
+  const counts = bins.map(b=>SAMPEL.filter(s=>s.harga>=b.min&&s.harga<b.max).length);
+  const mx = Math.max(...counts);
+  document.getElementById('histogram').innerHTML = bins.map((b,i)=>`
+    <div class="hist-row">
+      <div class="hist-label">${b.label}</div>
+      <div class="hist-track">
+        <div class="hist-fill" style="width:${(counts[i]/mx*100).toFixed(1)}%;background:#2563eb">
+          <span class="hist-count">${counts[i]}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function buildScatter(){
+  const W=500,H=200,px=40,py=20;
+  const n=SAMPEL.length;
+  const mx2=SAMPEL.reduce((a,s)=>a+s.cbd,0)/n;
+  const my2=SAMPEL.reduce((a,s)=>a+s.harga,0)/n;
+  const num=SAMPEL.reduce((a,s)=>a+(s.cbd-mx2)*(s.harga-my2),0);
+  const den=SAMPEL.reduce((a,s)=>a+(s.cbd-mx2)**2,0);
+  const slope=num/den, intercept=my2-slope*mx2;
+  const maxX=8,maxY=9000000;
+  const sx=v=>px+(v/maxX)*(W-px*2);
+  const sy=v=>H-py-(v/maxY)*(H-py*2);
+  const pts=SAMPEL.map(s=>`
+    <circle cx="${sx(s.cbd).toFixed(1)}" cy="${sy(s.harga).toFixed(1)}" r="5"
+      fill="${KELAS_COLOR[s.kelas]}" stroke="#fff" stroke-width="1.5" opacity=".85">
+      <title>${s.nama}: ${fmtM(s.harga)}</title>
+    </circle>`).join('');
+  document.getElementById('scatter').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="scatter-svg" xmlns="http://www.w3.org/2000/svg">
+      ${[0,2,4,6,8].map(x=>`
+        <line x1="${sx(x)}" y1="${py}" x2="${sx(x)}" y2="${H-py}" stroke="#e2e5ec" stroke-width="1"/>
+        <text x="${sx(x)}" y="${H-4}" text-anchor="middle" font-size="9" fill="#718096" font-family="Inter,sans-serif">${x}km</text>`).join('')}
+      ${[0,3,6,9].map(y=>`
+        <line x1="${px}" y1="${sy(y*1e6)}" x2="${W-px}" y2="${sy(y*1e6)}" stroke="#e2e5ec" stroke-width="1"/>
+        <text x="${px-4}" y="${sy(y*1e6)+3}" text-anchor="end" font-size="9" fill="#718096" font-family="Inter,sans-serif">${y}Jt</text>`).join('')}
+      <line x1="${sx(0)}" y1="${sy(intercept)}" x2="${sx(maxX)}" y2="${sy(slope*maxX+intercept)}"
+        stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5 3" opacity=".6"/>
+      ${pts}
+      <text x="${W/2}" y="${H}" text-anchor="middle" font-size="9" fill="#718096" font-family="Inter,sans-serif">Jarak ke CBD (km)</text>
+    </svg>`;
+}
+
+function buildBoxPlot(){
+  const groups=['Sangat Rendah','Rendah','Sedang','Tinggi','Sangat Tinggi'];
+  const BW=140,BH=190,pad=22;
+  const globalMin=1800000,globalMax=8500000;
+  const sc=v=>BH-pad-(v-globalMin)/(globalMax-globalMin)*(BH-pad*2);
+  document.getElementById('boxplot').innerHTML = groups.map(kelas=>{
+    const vals=SAMPEL.filter(s=>s.kelas===kelas).map(s=>s.harga).sort((a,b)=>a-b);
+    const q1=vals[Math.floor(vals.length*.25)];
+    const med=vals[Math.floor(vals.length*.5)];
+    const q3=vals[Math.floor(vals.length*.75)];
+    const mn=vals[0],mx=vals[vals.length-1];
+    const color=KELAS_COLOR[kelas];
+    return `<svg viewBox="0 0 ${BW} ${BH}" width="${BW}" height="${BH}" style="flex-shrink:0">
+      <line x1="${BW/2}" y1="${sc(mn)}" x2="${BW/2}" y2="${sc(q3)}" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="${BW/2}" y1="${sc(q1)}" x2="${BW/2}" y2="${sc(mx)}" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <rect x="${BW/2-22}" y="${sc(q3)}" width="44" height="${sc(q1)-sc(q3)}"
+        fill="${KELAS_BG[kelas]}" stroke="${color}" stroke-width="1.5" rx="3"/>
+      <line x1="${BW/2-22}" y1="${sc(med)}" x2="${BW/2+22}" y2="${sc(med)}" stroke="${color}" stroke-width="2.5"/>
+      <text x="${BW/2}" y="${BH-4}" text-anchor="middle" font-size="11" fill="${color}"
+        font-family="Inter,sans-serif" font-weight="700">${kelas}</text>
+      <text x="${BW/2+26}" y="${sc(med)+3}" font-size="9" fill="#718096" font-family="Inter,sans-serif">${fmtM(med)}</text>
+    </svg>`;
+  }).join('');
+}
+
+function buildTable(){
+  document.getElementById('tbl-body').innerHTML = [...ZONA].sort((a,b)=>b.nilai_rata-a.nilai_rata).map(z=>{
+    const c=KELAS_COLOR[z.kelas], bg=KELAS_BG[z.kelas];
+    return `<tr>
+      <td>${z.kelurahan}</td>
+      <td><span class="badge" style="background:${bg};color:${c}">${z.kelas}</span></td>
+      <td style="font-variant-numeric:tabular-nums">${fmtM(z.nilai_min)}</td>
+      <td style="font-variant-numeric:tabular-nums">${fmtM(z.nilai_max)}</td>
+      <td style="font-variant-numeric:tabular-nums;font-weight:600;color:${c}">${fmtM(z.nilai_rata)}</td>
+      <td style="font-variant-numeric:tabular-nums">${fmtM(z.nilai_median)}</td>
+      <td>${z.sampel}</td>
+      <td>${z.cod}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportCSV(){
+  const h='Kelurahan,Kelas ZNT,Nilai Min,Nilai Max,Nilai Rata-rata,Median,Sampel,COD\n';
+  const r=ZONA.map(z=>`${z.kelurahan},${z.kelas},${z.nilai_min},${z.nilai_max},${z.nilai_rata},${z.nilai_median},${z.sampel},${z.cod}`).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([h+r],{type:'text/csv'}));
+  a.download='ZNT_Waru_2026.csv'; a.click();
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+buildChoropleth();
+buildHeat();
+buildBubble();
+buildFas();
+buildJalan();
+  if(document.getElementById('chk-jalan').checked) jalanGrp.addTo(map);
+buildBarChart();
+buildHistogram();
+buildScatter();
+buildBoxPlot();
+buildTable();
+</script>
+</body>
+</html>
